@@ -1,0 +1,55 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Determine if an email template including a billing address should be used
+*  @input Order : dw.order.Order 
+*  @output useBilling: Boolean
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.order );
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = determineEmailReceipt(args.Order);
+    args.useBilling = result.useBilling;
+    return PIPELET_NEXT;
+}
+
+/**
+ * determineEmailReceipt - verifies if shipping addresses differs from the billing address
+ * @param order
+ */
+function determineEmailReceipt(order) {
+    var result={};
+    try{
+        
+        var log : Log = Logger.getLogger("instore-audit-trail");
+        log.info("determineEmailReceiptWithBilling: entering script");
+        // if any of the shipping addresses differs from the billing address, return true
+        // the logic can be customized here to determine if the receipt with that includes the billing addresss should be used
+        var billingAddress : OrderAddress = order.getBillingAddress();
+        var shipments : Collection = order.getShipments();
+        var sIterator : Iterator = shipments.iterator();
+        var diffBilling = false;
+        while (sIterator.hasNext()) {
+            var shipment = sIterator.next();
+            var shippingAddress = shipment.getShippingAddress();
+            if (!shippingAddress.isEquivalentAddress(billingAddress) || shippingAddress.phone != billingAddress.phone) {
+                diffBilling = true;
+                break;
+            }
+        }
+        log.info("determineEmailReceiptWithBilling: use receipt with billing " + diffBilling);
+        log.info("determineEmailReceiptWithBilling: exiting script without error");
+        result ={useBilling:diffBilling};
+
+    } catch(ex) {
+        var ErrorMessage = ex.stringify();
+        result = {ErrorMessage:ErrorMessage};
+    }
+    return result;
+}
+
+module.exports = {
+    determineEmailReceipt : determineEmailReceipt
+};

@@ -1,0 +1,97 @@
+<iscontent type="application/json" />
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<isscript>
+    importScript("util/ValueFormatters.ds");
+
+    var shipment : dw.order.Shipment = pdict.Basket.defaultShipment;
+    var shippingModel : dw.order.ShipmentShippingModel = dw.order.ShippingMgr.getShipmentShippingModel( shipment );
+</isscript>
+<isset name="DiscountPlan" value="${dw.campaign.PromotionMgr.getDiscounts(pdict.Basket)}" scope="page" />
+
+{
+    "httpStatus" : 200,
+    "etag" : "${pdict.Basket.getEtag()}",
+    <isif condition="${pdict.ApplicableShippingMethods.size() > 0}">
+        "shipping_methods" : [
+        <isloop items="${pdict.ApplicableShippingMethods}" var="shippingMethod" status="loopstate1">
+            <isset name="shippingCost" value="${pdict.ShippingCosts.get(shippingMethod.ID)}" scope="page"/>
+            {
+            "shipping_method_id" : "<isprint value="${shippingMethod.ID}"/>",
+            "shipping_method_name" : "<isprint value="${shippingMethod.displayName}"/>",
+            "shipping_method_base_price" : <isprint value="${ValueFormatters.formatFixedValueOrNull( shippingModel.getShippingCost(shippingMethod).getAmount().valueOrNull, 2 )}"/>, <!---  <isprint value="${shippingCost.baseShipping.valueOrNull}"/> --->
+            <isif condition="${shippingCost && shippingCost.shippingPriceAdjustmentsTotal != null && shippingCost.shippingPriceAdjustmentsTotal != 0}">
+               "shipping_method_base_price_adjusted" : <isprint value="${ValueFormatters.formatFixedValueOrNull( shippingCost.baseShippingAdjusted.valueOrNull, 2 )}"/>,
+            </isif>
+            <isif condition="${shippingCost && shippingCost.surchargeAdjusted != null && shippingCost.surchargeAdjusted != 0}">
+                "shipping_method_surcharge" : <isprint value="${ValueFormatters.formatFixedValueOrNull( shippingCost.surchargeAdjusted.valueOrNull, 2 )}"/>,
+            </isif>
+            <isif condition="${shippingCost && shippingCost.productShippingCosts && shippingCost.productShippingCosts.length > 0}">
+                "shipping_method_price_details" : {
+                <isset name="productShipCost" value="${new dw.value.Money(0.0, dw.system.Site.getCurrent().getCurrencyCode())}" scope="page"/>
+                <isloop items="${shippingCost.productShippingCosts}" var="productShipping" status="loopstate">
+                    <isif condition="${productShipping.shippingCost != null && productShipping.shippingCost.amount != null && productShipping.shippingCost.amount > 0}">
+                        <isset name="productShipCost" value="${productShipCost.add(productShipping.shippingCost.amount)}" scope="page"/>
+                        <isif condition="${productShipping.shippingCost.surcharge}">
+                            "shipping_method_additional_price_type" : "Surcharge",
+                        </isif>
+                        "shipping_method_additional_price_product_name" : "<isprint value="${productShipping.name}"/>",
+                        "shipping_method_additional_price" : <isprint value="${ValueFormatters.formatFixedValueOrNull( productShipping.shippingCost.amount.valueOrNull, 2 )}"/>,
+                    </isif>
+                </isloop>
+                <isif condition="${shippingCost.shippingPriceAdjustments.length > 0}">
+                    "shipping_method_price_adjustments" : [
+                        <isloop items="${shippingCost.shippingPriceAdjustments}" var="shippingPA" status="loopstate2">
+                        {
+                            "shipping_method_price_adjustment_description" : "<isprint value="${shippingPA.calloutMsg}"/>",
+                            "shipping_method_price_adjustment_value" : <isprint value="${ValueFormatters.formatFixedValueOrNull( shippingPA.price.valueOrNull, 2 )}"/>
+                        }<isif condition="${!(loopstate2.last)}">,</isif>
+                        </isloop>
+                   ],
+                </isif>
+                <isif condition="${shippingCost.productShippingDiscounts.length > 0}">
+                    "shipping_method_promotions" : [
+                        <isloop items="${shippingCost.productShippingDiscounts}" var="productShippingDiscount" status="loopstate3">
+                        {
+                            <isset name="shippingPromotion" value="${productShippingDiscount.calloutMsg}" scope="page"/>
+                            <isif condition="${shippingPromotion != null}">
+                                "shipping_method_promotion_description" : "<isprint value="${shippingPromotion}"/>",
+                                "shipping_method_promotion_value" : <isprint value="${ValueFormatters.formatFixedValueOrNull( productShippingDiscount.price.valueOrNull, 2 )}"/>
+                            </isif>
+                        }<isif condition="${!(loopstate3.last)}">,</isif>
+                        </isloop>
+                      ],
+                 </isif>
+                 "shipping_method_base_price" : <isprint value="${ValueFormatters.formatFixedValueOrNull( shippingModel.getShippingCost(shippingMethod).getAmount().valueOrNull, 2 )}"/>
+             },
+             </isif>
+              
+             <!---  Display approaching shipping promotional discounts. 
+             <isloop items="${DiscountPlan.getApproachingShippingDiscounts(shipment, shippingMethod)}" var="shippingDiscount">
+                 "shipping_method_approaching_discount":<isprint value="${shippingDiscount.getDistanceFromConditionThreshold()}" />,
+                 "shipping_method_approaching_discount_callout":"${shippingDiscount.getDiscount().getPromotion().getCalloutMsg()}",
+             </isloop>
+             --->
+
+             <isif condition="${!empty(shippingMethod.description)}">
+                 "shipping_method_description" : "<isprint value="${shippingMethod.description}"/>",
+             </isif>
+
+             <isif condition="${shippingCost && shippingCost.shippingInclDiscounts.available}">
+                 "shipping_method_total_price" : <isprint value="${ValueFormatters.formatFixedValueOrNull( shippingCost.shippingInclDiscounts.valueOrNull, 2 )}"/>
+             <iselse/>
+                 "shipping_method_total_price" : <isprint value="${ValueFormatters.formatFixedValueOrNull( shippingModel.getShippingCost(shippingMethod).getAmount().valueOrNull, 2 )}"/>
+             </isif>
+             }<isif condition="${!(loopstate1.last)}">,</isif>
+        </isloop>
+        ]
+    <iselse/>
+        <!--- No Shipping Methods --->
+        {
+            "httpStatus" : 200,
+            "_flash" : [{
+                "checkout" : "${Resource.msg('singleshipping.noshippingmethods', 'checkout', null)}"
+             }]
+        }
+    </isif>
+}

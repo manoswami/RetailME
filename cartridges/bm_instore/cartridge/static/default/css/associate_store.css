@@ -1,0 +1,22 @@
+/**
+* ©2015-2018 salesforce.com, inc. All rights reserved.
+*/
+.associateWrapperDiv {
+    position: relative;
+    width: 70%;
+    border: 1px solid #dadada;
+}
+
+.wrappDiv {
+    margin-bottom: 2%;
+    position: relative;
+    width: 70%;
+}
+
+.selectedRow {
+    background-color: #D9EDF7 !important;
+}
+
+table.dataTable thead th, table.dataTable thead td {
+    padding-left: 10px !important;
+}

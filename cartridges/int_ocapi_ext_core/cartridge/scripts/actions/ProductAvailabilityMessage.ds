@@ -1,0 +1,104 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* To set the availability message for display in the shopping cart
+* Using the same logic thats in cartavailability.isml template
+*
+* @input  Basket : dw.order.Basket
+* @output availabilityMessageMap : dw.util.HashMap
+*
+*/
+importPackage( dw.system );
+importPackage( dw.catalog ); 
+importPackage( dw.order );
+importPackage( dw.util );
+importPackage( dw.web );
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = productAvailabilityMessage(args.Basket);
+    if (result) {
+        args.availabilityMessageMap = result.availabilityMessageMap;
+        return PIPELET_NEXT;
+    }
+}
+/**
+ * productAvailabilityMessage - gathers availability messages for all the products in the basket
+ * @param basket
+ */
+function productAvailabilityMessage(basket) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("ProductAvailabilityMessage: entering script");
+    
+    var messageMap : HashMap = new HashMap();
+    var message : String = "";
+    
+    if (basket) {
+        var plis : Iterator = basket.getProductLineItems().iterator();
+        
+        while(plis.hasNext())
+        {
+            var pli : ProductLineItem = plis.next();
+            var product : Product = pli.product;
+            var instockdate : String = "";
+            message = "";
+            
+            if (!pli.bonusProductLineItem || pli.getBonusDiscountLineItem() != null) {
+                
+                var quantity = pli.quantityValue;
+                var levels = product.availabilityModel.getAvailabilityLevels(pli.quantityValue);
+                
+                if (product.availabilityModel.inventoryRecord != null && product.availabilityModel.inventoryRecord.inStockDate != null) {
+                    instockdate = product.availabilityModel.inventoryRecord.inStockDate.toDateString();
+                }
+                
+                if (levels.inStock.value > 0) {
+                    if (levels.inStock.value != quantity) {
+                        message = StringUtils.format(Resource.msg('global.quantityinstock', 'locale', null), levels.inStock.value);
+                    }
+                }
+                
+                if (levels.preorder.value > 0) {
+                    if (levels.preorder.value == quantity) {
+                        message = StringUtils.format(Resource.msg('global.allpreorder', 'locale', null));
+                    
+                    } else if (levels.notAvailable.value == 0) {
+                        message = message + ". " + StringUtils.format(Resource.msg('global.remainingpreorder', 'locale', null));
+                    
+                    } else {
+                        message = message + ". " + StringUtils.format(Resource.msg('global.quantitypreorder', 'locale', null), levels.preorder.value);
+                    }
+                }
+                
+                if (levels.backorder.value > 0) {
+                    if (levels.backorder.value == quantity) {
+                        message = StringUtils.format(Resource.msg('global.allbackorder', 'locale', null));
+                        
+                    } else if (levels.notAvailable.value == 0) {
+                        message = message + ". " + StringUtils.format(Resource.msg('global.remainingbackorder', 'locale', null));
+                        
+                    } else {
+                        message = message + ". " + StringUtils.format(Resource.msg('global.quantitybackorder', 'locale', null), levels.backorder.value);
+                    }
+                }
+    
+                if (levels.notAvailable.value > 0) {
+                    message = message ? message + ". " : "";
+                    if (levels.notAvailable.value == quantity) {
+                        message = message + StringUtils.format(Resource.msg('global.allnotavailable', 'locale', null));
+                        
+                    } else {
+                        message = StringUtils.format(Resource.msg('global.remainingnotavailable', 'locale', null));
+                        
+                    }
+                }
+            }
+            messageMap.put(pli.productID, message);
+        }
+    }
+    log.info("ProductAvailabilityMessage: exiting script without error");
+    return {availabilityMessageMap : messageMap};
+}
+
+module.exports = {
+    productAvailabilityMessage : productAvailabilityMessage
+};

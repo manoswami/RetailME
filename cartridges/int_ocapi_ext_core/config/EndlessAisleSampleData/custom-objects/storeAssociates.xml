@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<custom-objects xmlns="http://www.demandware.com/xml/impex/customobject/2006-10-31">
+    <custom-object type-id="storeAssociates" object-id="store2">
+        <object-attribute attribute-id="associateIDs">A1234,A5678,A9999</object-attribute>
+    </custom-object>
+
+</custom-objects>

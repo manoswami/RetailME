@@ -1,0 +1,283 @@
+<iscontent type="text/html" charset="UTF-8"/>
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<isdecorate template="application/MenuFrame">
+
+<isinclude template="util/modules">
+
+<!--- including dataTables.min.js --->
+<script src="${URLUtils.staticURL('/js/jquery.dataTables.min.js')}" type="text/javascript"></script>
+<link rel="stylesheet" type="text/css" href="${URLUtils.staticURL('/css/jquery.dataTables.min.css')}" >
+<!--- including dataTables.min.js --->
+
+
+
+<!-- Page Navigator -->
+<isset name="preferencesURL"   value="${URLUtils.url('SiteNavigationBar-ShowMenuitemOverview', 'CurrentMenuItemId', 'site-prefs')}" scope="PAGE">
+<isset name="manageAssocURL"   value="${URLUtils.url('ManageAssociates-Start', 'SelectedMenuItem', 'site-prefs','CurrentMenuItemId', 'site-prefs', 'menuname', 'Manage Associates Extension','mainmenuname','Site Preferences')}" scope="PAGE">
+<isbreadcrumbs bctext1="${Resource.msg('breadcrumb.preferences','strings',null)}" bcurl1="${preferencesURL}" bctext2="${Resource.msg('breadcrumb.manageAssociate','strings',null)}" bcurl2="${manageAssocURL}" bctext3="${Resource.msg('addassociate.title','strings',null)}" >
+<!-- EO Page Navigator -->
+
+<isscript>
+    function renderPermissionsDropdown(allPermissions, associatePermissionId){
+        var pemissionsDropdown = '';
+        for each( permission in allPermissions ) {
+                    pemissionsDropdown = pemissionsDropdown+ '<option '+(permission.custom.permissionGroupId == associatePermissionId? 'selected' :'') 
+                    +' value="'+permission.custom.permissionGroupId+'">&nbsp;'+
+                            permission.custom.permissionGroupName + 
+                            ' (' + permission.custom.permissionGroupId +')'+
+                             '&nbsp;</option>';
+        }
+        return pemissionsDropdown;
+    }
+    var currentForm = {};
+    currentForm.employeeIds = (pdict.CurrentRequest.httpParameters.employeeIds?pdict.CurrentRequest.httpParameters.employeeIds:[]);
+    var storeObj : CustomObject = dw.object.CustomObjectMgr.getCustomObject("storeAssociates", pdict.StoreId);
+    var existingAssociates : String = storeObj.custom.associateIDs?storeObj.custom.associateIDs:'';
+    
+    
+    var prefilled_employee_id = pdict.CurrentHttpParameterMap.employee_id || "";
+    var prefilled_firstName = pdict.CurrentHttpParameterMap.firstname || "";
+    var prefilled_lastName = pdict.CurrentHttpParameterMap.lastname || "";
+    var prefilled_permissions = pdict.CurrentHttpParameterMap.permissions || "";
+    var prefilled_password = pdict.CurrentHttpParameterMap.password || "";
+    var prefilled_confirmPassword =  "";
+    var allPermissions = (pdict.PermissionGroupList.hasNext() ? pdict.PermissionGroupList.asList() : dw.object.CustomObjectMgr.getAllCustomObjects("permissionGroup").asList()) ;
+    var currentStore = dw.catalog.StoreMgr.getStore(pdict.StoreId);
+    var storeName = currentStore.name+
+                    ' | '+currentStore.city+ ', ' +
+                    (currentStore.stateCode?currentStore.stateCode:'')+
+                    ' '+(currentStore.postalCode?currentStore.postalCode:'')+
+                    ' ('+currentStore.ID+') ';
+    
+    
+</isscript>
+
+<form action="${dw.web.URLUtils.continueURL()}" method="POST" name="add">
+    <input type="hidden" name="storeid" value="${pdict.StoreId}"/> 
+    <input type="hidden" name="selectedStoreId" value="${pdict.CurrentHttpParameterMap.selectedStoreId.value?pdict.CurrentHttpParameterMap.selectedStoreId.value:''}"/>
+    <table  border="0" cellpadding="0" cellspacing="0" width="100%">
+         <tr>
+            <td width="100%" class="w e s table_title">
+                <p class="assignAssociateFormText">
+                    <isprint value="${dw.web.Resource.msg('addassociate.headerTitle2', 'strings', null)}" /> ${(storeName?storeName:pdict.StoreId)}
+                </p>
+                <p class="newAssociateFormText" style="display:none">
+                    <isprint value="${dw.web.Resource.msg('addassociate.createAssociate_title_button', 'strings', null)}" />
+                </p>
+            </td>
+        </tr> 
+        <tr>
+            <td valign="top" class="table_title_description ">
+                <p class="assignAssociateFormText"><isprint value="${Resource.msg('addassociate.description1','strings',null)}" encoding="off" /></p>                    
+                
+                <p class="assignAssociateFormText"><isprint value="${Resource.msg('addassociate.description3','strings',null)}" encoding="off"/></p>            
+                <p class="newAssociateFormText" style="display:none"><isprint value="${Resource.msg('addassociate.createAssociate_description1','strings',null)}" encoding="off"/></p>            
+                            
+                <p class="newAssociateFormText" style="display:none"><isprint value="${Resource.msg('addassociate.createAssociate_description3','strings',null)}" encoding="off"/></p>            
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div align="left" class="wrappDiv">
+                    <input type="button"  class="button" id="addNewAssociateButton" value="${dw.web.Resource.msg('addassociate.createAssociate_title_button', 'strings', null)}">
+                </div>
+            </td>
+        </tr>
+        <!-- errors -->
+        <isif condition="${!empty(pdict.ErrorStatus)}"> 
+            <tr>
+                <td>
+                    <br>
+                    <table id="assignAssocErrorView" border="0" cellspacing="0" cellpadding="4" width="100%" class="error_box n s e w">
+                        <tr valign="top">
+                            <td class="error_icon top e"><img src="${URLUtils.webRoot()}/images/error.gif" width="16" height="15" alt="" border="0"/></td>
+                            <td class="error top" width="100%">
+                            <p>Error: <isprint value="${pdict.ErrorStatus}"><br/>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>    
+        </isif>
+        <tr>
+            <td>
+                <br>
+                <!-- New Associate Form Errors View -->
+                <table id="newAssoc_errorTextWrapper" border="0" style="display:none" cellspacing="0" cellpadding="4" width="100%" class="error_box n s e w">
+                    <tr valign="top">
+                        <td class="error_icon top e"><img src="${URLUtils.webRoot()}/images/error.gif" width="16" height="15" alt="" border="0"/></td>
+                        <td id="newAssoc_error" class="error top" width="100%">
+                            
+                        </td>
+                    </tr>
+                </table>
+                <!-- New Associate Form Errors View -->
+            </td>
+        </tr>
+        <tr>
+            <td>&nbsp;</td>
+        </tr>
+        
+        <tr>
+            <td >
+                <table border="0" cellpadding="0" cellspacing="0"  class="w e s" width="100%">
+                <tbody>
+                    <tr>
+                        <td class="table_header s n" colspan="2">
+                            <p class="assignAssociateFormText">${dw.web.Resource.msg('addassociate.headerTitle', 'strings', null)}&nbsp;</p>
+                            <p class="newAssociateFormText" style="display:none">${dw.web.Resource.msg('addassociate.createAssociate_title_button', 'strings', null)}&nbsp;</p>
+                            
+                        </td>
+                    </tr>
+                    <tr>
+                        <td width="100%">
+                            <img src="${URLUtils.staticURL('/images/loading.gif')}" id="activityIndicator" style="display:none">
+                            <div id="hiddenFormElements" style="display:none">
+                                <isscript>
+                                    currentForm.employeeIds.forEach(function(currentId){
+                                        out.print('<input name="employeeIds" type="hidden" value="'+currentId+'">');
+                                    });
+                                </isscript>
+                            </div>
+                            <div id="associateWrapperDiv" class="associateWrapperDiv" >
+                                <div id="existingAssociates">
+                                    <br>
+                                    <table id="existingAssociatesTable" class="display" width="100%" >
+                                        <thead>
+                                            <tr>
+                                                <th align="left">${dw.web.Resource.msg('addassociate.table.select', 'strings', null)}</th>
+                                                <th align="left" style="display:none">${dw.web.Resource.msg('addassociate.table.creationDate', 'strings', null)}</th>
+                                                <th align="left">${dw.web.Resource.msg('addassociate.table.employeeId', 'strings', null)}</th>
+                                                <th align="left">${dw.web.Resource.msg('addassociate.table.firstName', 'strings', null)}</th>
+                                                <th align="left">${dw.web.Resource.msg('addassociate.table.lastName', 'strings', null)}</th>
+                                                <th align="left">${dw.web.Resource.msg('addassociate.table.permissions', 'strings', null)}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        
+                                            <isscript>
+                                            
+                                            try{
+                                                var allAssociates : SeekableIterator = dw.object.CustomObjectMgr.getAllCustomObjects("associates");
+                                                while(allAssociates.hasNext()){
+                                                    var associate: Store = allAssociates.next();
+                                                    if(existingAssociates.indexOf(associate.custom.employeeId) == -1){
+                                                        out.print('<tr class="'+(currentForm.employeeIds.indexOf(associate.custom.employeeId)>-1?'selectedRow':'')+'">'+
+                                                                    '<td><input type="checkbox" class="associateSelect"  value="'+associate.custom.employeeId+'"'+(currentForm.employeeIds.indexOf(associate.custom.employeeId)>-1?'checked':'')+' ></td>'+
+                                                                    '<td style="display:none">'+Date.parse(associate.creationDate)+'</td>'+
+                                                                    '<td>'+associate.custom.employeeId.trim().substring(1)+'</td>'+
+                                                                    '<td>'+associate.custom.firstName+'</td>'+
+                                                                    '<td>'+associate.custom.lastName+'</td>'+
+                                                                    '<td><select class="associatePermissions">'+renderPermissionsDropdown(allPermissions.iterator(),associate.custom.permissionGroupId)+'</select></td>'+
+                                                                '</tr>' );
+                                                            }
+                                                }
+                                                allAssociates.close();
+                                            }
+                                            catch(e){
+                                                dw.system.Logger.error("All Associates Query: "+e);
+                                            }
+                                            </isscript>
+                                        </tbody>
+                                    </table>
+                                    <br>
+                                    <br>
+                                </div>
+                                
+                                <div id="newAssociateform">
+                                    
+                                    <table  border="0" cellpadding="0" cellspacing="0" width="100%">
+                                        <tr>
+                                            <td class="fielditem2 " align="right"  nowrap="nowrap">
+                                                <isprint value="${dw.web.Resource.msg('addassociate.id', 'strings', null)}" />
+                                                <span class="star">*</span>
+                                            </td>
+                                            <td width="100%"><input type="text" name="employee_id" size="40" value="${prefilled_employee_id}"></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fielditem2 " align="right"  nowrap="nowrap">
+                                                <isprint value="${dw.web.Resource.msg('addassociate.firstName', 'strings', null)}" />
+                                                <span class="star">*</span>
+                                            </td>
+                                            <td width="100%"><input type="text" name="firstname" size="40" value="${prefilled_firstName}"></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fielditem2 " align="right"  nowrap="nowrap">
+                                                <isprint value="${dw.web.Resource.msg('addassociate.lastName', 'strings', null)}" />
+                                                <span class="star">*</span>
+                                            </td>
+                                            <td width="100%"><input type="text" name="lastname" size="40" value="${prefilled_lastName}"></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fielditem2 " align="right"  nowrap="nowrap">
+                                                <isprint value="${dw.web.Resource.msg('addassociate.permissionGroupId', 'strings', null)}" />
+                                                <span class="star">*</span>
+                                            </td>
+                                            <td width="100%">
+                                                <select name="permissions">
+                                                    <isloop items="${pdict.PermissionGroupList}" var="permission" status="pgLoop">
+                                                        <isif condition="${prefilled_permissions == permission.custom.permissionGroupId}">
+                                                             <option value="${permission.custom.permissionGroupId}" selected='selected'>&nbsp;<isprint value="${permission.custom.permissionGroupName + ' (' + permission.custom.permissionGroupId +')'}" encoding="off"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</option>
+                                                         <iselse>
+                                                             <option value="${permission.custom.permissionGroupId}">&nbsp;<isprint value="${permission.custom.permissionGroupName + ' (' + permission.custom.permissionGroupId +')'}" encoding="off"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</option>
+                                                         </isif>
+                                                     </isloop>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fielditem2 " align="right"  nowrap="nowrap">
+                                                <isprint value="${dw.web.Resource.msg('addassociate.password', 'strings', null)}" />
+                                                <span class="star">*</span>
+                                            </td>
+                                            <td width="100%"><input type="password" name="password" size="40"  value="${prefilled_password}"></td>
+                                        </tr>            
+                                        <tr>
+                                            <td class="fielditem2 " align="right"  nowrap="nowrap">
+                                                <isprint value="${dw.web.Resource.msg('addassociate.confirmPassword', 'strings', null)}" />
+                                                <span class="star">*</span>
+                                            </td>
+                                            <td width="100%">
+                                                <input type="password" name="confirmPassword" size="40"  value="${prefilled_confirmPassword}">
+                                                <input type="hidden" name="currentStoreID"  value="${pdict.StoreId}">
+                                            </td>
+                                        </tr>
+                                    </table>
+                                
+                                </div>
+                            </div>
+                            
+                        </td>
+                    </tr>
+                    <tr >
+                        <td align="right" class="fielditem2 n" colspan="2" nowrap="nowrap">
+                            <table border="0" cellspacing="4" cellpadding="0">
+                                <tbody>
+                                    <tr>
+                                        <td class="button"><input type="button" style="display:none" id="createNewAssoc" class="button" value="${dw.web.Resource.msg('addStore.createAssoc', 'strings', null)}" ></td>
+                                        <td class="button"><input type="button" style="display:none" id="cancelNewAssoc"class="button" value="${dw.web.Resource.msg('addStore.cancel.label', 'strings', null)}" ></td>
+                                        <td class="button"><input type="submit" id="apply" class="button" value="${dw.web.Resource.msg('addassociate.apply', 'strings', null)}" name="apply"></td>
+                                        <td class="button"><input type="submit" id="cancel" class="button" value="${dw.web.Resource.msg('addassociate.cancel', 'strings', null)}" name="cancel"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>    
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </table>
+</form>
+<!--- including addStore.js and associate_store.css--->
+<script type="text/javascript">
+    var errorMsg = {};
+    errorMsg.missingRequiredFields = "${dw.web.Resource.msg('jsFiles.missingRequiredFields', 'strings', null)}",
+    errorMsg.passMissMatch = "${dw.web.Resource.msg('jsFiles.passMissMatch', 'strings', null)}";
+</script>
+<script src="${URLUtils.staticURL('/js/addAssociate.js')}" type="text/javascript"></script>
+<link rel="stylesheet" type="text/css" href="${URLUtils.staticURL('/css/addAssociate.css')}" >
+
+</isdecorate>
+    

@@ -1,0 +1,22 @@
+<isinclude template="util/modules"/>
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<isscript>
+    importScript("util/ValueFormatters.ds");
+</isscript>
+<table id="order-table">
+    <tbody>
+        <tr>
+            <td>Order Number</td>
+            <td>${pdict.Order.orderNo}</td>
+        </tr>
+        <tr>
+            <td>Order Date</td>
+            <td><isprint value="${pdict.Order.creationDate}" style="DATE_LONG"/></td>
+        </tr>
+        <tr>
+            <td>Order Total</td>
+            <td>${ValueFormatters.formatFixedValueOrNull( pdict.Order.totalGrossPrice.valueOrNull, 2 )}</td>
+        </tr>
+    </tbody>
+</table>    

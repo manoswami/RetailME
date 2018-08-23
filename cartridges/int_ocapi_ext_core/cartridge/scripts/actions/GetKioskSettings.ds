@@ -1,0 +1,60 @@
+/**
+* Wrapper to get Kiosk CFG Settings details
+*
+*  @input StoreID : String
+*  @output JSONResponse : Object 
+*  @output ErrorMessage : Object
+*
+*/
+
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.util );
+importPackage( dw.catalog );
+
+/**
+* execute - main script entry that will read the kiosk mode settings to send back to DSS
+*/
+function execute(args : PipelineDictionary ) : Number
+{
+    args.JSONResponse = getKioskSettings(args.StoreID);
+    return PIPELET_NEXT;
+}
+
+/**
+* getKioskSettings - returns the kiosk username and password
+*/
+function getKioskSettings(storeID) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    var sitePrefs : SitePreferences = dw.system.Site.getCurrent().getPreferences();
+    
+    // get username and password from site preferences for kiosk mode
+    var kioskUsername : String = sitePrefs.getCustom()["eaKioskModeUsername"];
+    var kioskPassword : String = sitePrefs.getCustom()["eaKioskModePassword"];
+    var result : Object = {"username" : kioskUsername, "password" : kioskPassword};
+    
+    // check to see if there are store specific configurations for kiosk username and password.
+    // If so, then use that value instead of the global one.
+    var stores : SeekableIterator = SystemObjectMgr.querySystemObjects("Store", "ID = {0}", "ID asc", storeID);
+    while (stores.hasNext()) {
+        var store : Store = stores.next();
+        if(store){
+            log.info("GetSettingsDynamic: reading kiosk settings from " + storeID);
+             kioskUsername = store.getCustom()["eaKioskModeUsername"];
+             if (kioskUsername && kioskUsername != '') {
+                 result.username = kioskUsername;    
+             }
+             
+             kioskPassword = store.getCustom()["eaKioskModePassword"];
+             if (kioskPassword && kioskPassword != '') {
+                 result.password = kioskPassword;    
+             }
+        }
+    }
+
+    return {CFG: {kiosk_mode: result}};    
+}
+
+module.exports={
+    getKioskSettings:getKioskSettings    
+};

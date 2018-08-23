@@ -1,0 +1,99 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Get the OAuth token
+*
+*  @input HostName: String
+*  @output Response : Object
+*
+*/
+
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.net );
+importPackage( dw.util );
+
+
+/**
+* Called from the pipeline to get an authentication token
+*/
+function execute( args : PipelineDictionary ) : Number {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("GetAuthenticationToken: entering execute");
+    var response = getAuthenticationToken(args.HostName);
+    args.Response = response;
+    log.info("GetAuthenticationToken: exiting script without error");
+    return PIPELET_NEXT;
+}
+
+/**
+ * Get an OAuth token
+ * @param hostname
+ * @return response
+ */
+function getAuthenticationToken(hostName) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("GetAuthenticationToken: entering getAuthenticationToken");
+
+    var site : Site = Site.getCurrent();
+    var sitePrefs : SitePreferences = site.getPreferences();
+    var clientId = sitePrefs.getCustom().eaClientId;
+    var clientIdAndSecret : CustomObject = CustomObjectMgr.getCustomObject("oauth", clientId);
+    if (empty(clientIdAndSecret) || empty(clientIdAndSecret.custom.secret)) {
+        response = {
+            httpStatus : "400",
+            fault : {
+                error : "EmptyClientCredentials",
+                message : dw.web.Resource.msgf("authenticationToken.noOauthObject", "eaapi", null, clientId)
+            }
+        };
+        return response;
+    }
+
+    var encoded = StringUtils.encodeBase64(session.custom.username + ":" + session.custom.password + ":" + clientIdAndSecret.custom.secret);
+
+
+    var httpClient : HTTPClient = new HTTPClient();
+    var message : String;
+
+    httpClient.setRequestHeader("Authorization", "Basic " + encoded);
+    httpClient.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+    var timeout = 5000;
+    var ocapiTimeout = sitePrefs.getCustom().eaOCAPITimeout;
+    if (ocapiTimeout) {
+        timeout  = ocapiTimeout.getValue();
+    }
+    httpClient.setTimeout(timeout);
+
+    var data = "grant_type=urn%3Ademandware%3Aparams%3Aoauth%3Agrant-type%3Aclient-id%3Adwsid%3Adwsecuretoken&client_id=" + clientId;
+
+    httpClient.open("POST", "https://" + hostName + "/dw/oauth2/access_token");
+
+    httpClient.send(data);
+
+    var message:String;
+    var response;
+    if (httpClient.statusCode == 200) {
+        response = JSON.parse(httpClient.text);
+    } else if (httpClient.statusCode == 400) {
+        // if there's something wrong with the login attempt, report that error, so the client doesn't keep making requests
+        return {
+           httpStatus : "400",
+           fault : JSON.parse(httpClient.errorText)
+        };
+    } else {
+        // error handling
+        response = {
+            httpStatus : "400",
+            fault : {
+                error : "UnknownError",
+                message : dw.web.Resource.msgf("authenticationToken.errorMessage", "eaapi", null, httpClient.statusCode)
+            }
+        };
+    }
+    return response;
+}
+
+module.exports = {
+    getAuthenticationToken : getAuthenticationToken
+};

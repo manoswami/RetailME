@@ -1,0 +1,29 @@
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<iscomment>define reusable input field and label rendering</iscomment>
+<ismodule template="util/inputfield.isml"
+    name="inputfield"
+    attribute="formfield"
+    attribute="type"
+    attribute="maxlength"
+    attribute="size"
+    attribute="xhtmlclass"
+    attribute="label"
+    attribute="value"
+    attribute="p_dynamic"
+    attribute="attribute1"
+    attribute="value1"
+    attribute="attribute2"
+    attribute="value2"
+    attribute="attribute3"
+    attribute="value3"
+/>
+<ismodule template="util/breadcrumbs"
+    name="breadcrumbs"
+    attribute="bctext1"
+    attribute="bcurl1"
+    attribute="bctext2"
+    attribute="bcurl2"
+    attribute="bctext3"
+    attribute="bcurl3"
+/>

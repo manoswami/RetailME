@@ -1,0 +1,95 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Wrapper Script for emailing product lists. Eg: Email wishlist, shopping list, etc...
+*
+*   @input productListId : String 
+*   @input receiverEmail : String 
+*   @input senderEmail : String 
+*   @input senderName : String 
+*   @output JSONResponse : String
+*
+*/
+importPackage( dw.system );
+importPackage( dw.customer );
+importPackage( dw.web );
+importPackage( dw.net );
+importPackage( dw.util );
+
+function execute( args : PipelineDictionary ) : Number
+{
+    try{
+        if (!empty(args.productListId) && !empty(args.receiverEmail) && !empty(args.senderEmail) && !empty(args.senderName)) {
+            var mail  = new Mail();
+            var productList = ProductListMgr.getProductList(args.productListId);
+            var mailSubject = Resource.msg('productlist.checkOutMy','account',null)+' ';
+            var emailContent;
+            
+            switch (productList.type) {
+                case ProductList.TYPE_WISH_LIST:
+                    mailSubject += Resource.msg('productlist.wishlist','account',null);
+                    emailContent = Resource.msg('productlist.visitwishlist','account',null);
+                    break;
+                case ProductList.TYPE_SHOPPING_LIST:
+                    mailSubject += Resource.msg('productlist.shoppingList','account',null);
+                    emailContent = Resource.msg('productlist.visitspl','account',null);
+                    break;
+                case ProductList.TYPE_GIFT_REGISTRY:
+                    mailSubject += Resource.msg('productlist.giftRegistry','account',null);
+                    emailContent = Resource.msg('productlist.visitgr','account',null);
+                    break;
+                default:
+                    mailSubject += Resource.msg('productlist.productList','account',null);
+                    emailContent = Resource.msg('productlist.visitdefault','account',null);
+                    break;
+            }
+            mail.setSubject(mailSubject);
+            mail.addTo(args.receiverEmail);
+            mail.setFrom(args.senderEmail);
+            emailContent += '\n'+ URLUtils.https('Wishlist-ShowOther', 'WishListID', productList.UUID);
+            emailContent += '\n\n'+ Resource.msg('productlist.thanks','account',null);
+            emailContent += '\n'+ args.senderName;
+            
+            /*
+            the template at the following location could be used as example for an HTML product list email . ea_sitegenesis_storefront/cartridge/templates/default/mail/productlist
+            emailContent = generateProductListEmailContentFromTemplate('mail/productlist',{"MailSubject":mailSubject, "ProductList":productList});
+            */
+            
+            
+            
+            mail.setContent(emailContent);
+            mail.send();
+            args.JSONResponse = JSON.stringify({"httpStatus":200});
+        } else {
+            args.JSONResponse = JSON.stringify({"httpStatus":500,"message":"missing required inputs"});
+            return PIPELET_ERROR;
+        }
+    
+    } catch(e) {
+        var error = (typeof e !== "string" ? JSON.stringify(e) : e );
+        args.JSONResponse = JSON.stringify({"httpStatus":500,"message":error});
+        return PIPELET_ERROR;
+    }
+   return PIPELET_NEXT;
+}
+
+/*
+ * generateProductListEmailContentFromTemplate -  generate the product list email from a template.
+ * @param {String} templatePath -  path to the template file
+ * @param {Object} templateData - data to required to render template
+ * @return {Object} email content
+*/
+
+function generateProductListEmailContentFromTemplate(templatePath, templateData){
+    var hMap: Map = new dw.util.HashMap();
+    var template = new Template(templatePath);
+    for (key in templateData){
+        hMap.put(key,templateData[key]);
+    }
+    var content: MimeEncodedText = template.render(hMap);
+    return content;
+}
+
+module.exports = {
+    execute : execute
+};

@@ -1,0 +1,32 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Add a note to a failed order indicating why the order failed.
+*
+*   @input Order : dw.order.Order
+*
+*/
+importPackage( dw.system );
+importPackage( dw.order );
+importPackage( dw.util );
+
+importScript("api/EAStatus.ds");
+
+function execute( args : PipelineDictionary ) : Number
+{
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("AddNoteToFailedOrder: entering script");
+    
+    var order : Order = args.Order;
+    
+    if (order) {
+        order.addNote(dw.web.Resource.msg('failedorder.title','addnotetofailedorder', null),
+                      dw.web.Resource.msg('failedorder.note', 'addnotetofailedorder', null));
+    }    
+    log.info("AddNoteToFailedOrder: exiting script without error");
+    return PIPELET_NEXT;
+}
+
+module.exports = {
+    execute : execute
+};

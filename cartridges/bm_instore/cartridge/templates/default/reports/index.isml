@@ -1,0 +1,302 @@
+<iscontent type="text/html" charset="UTF-8"/>
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<isscript>
+    var parsedStoreData = [];
+
+    var sCredentials = pdict.storeCredentials.asList();
+    var allStore= pdict.stores.asList();
+    
+    for each(storeCredential in sCredentials.iterator()){
+        for each(store in allStore.iterator()){
+            if(store.ID == storeCredential.custom.storeId ){
+            var storeName = store.name+
+                            ' | '+store.city+ ', ' +
+                            (store.stateCode?store.stateCode:'')+
+                            ' '+(store.postalCode?store.postalCode:'')+' ('+store.ID+') ';
+            parsedStoreData.push({    id:store.ID,
+                                    name: storeName});
+                    
+                
+            }
+        }
+    }
+    
+    var existingStores = JSON.stringify(parsedStoreData);
+    
+    var site : Site = dw.system.Site.getCurrent();
+    var sitePrefs : SitePreferences = site.getPreferences();
+    var countryConfiguration = sitePrefs.getCustom().eaCountryConfiguration;
+    var startOfWeekConfig = sitePrefs.getCustom().eaSalesReportsStartOfWeek;
+    
+    
+</isscript>
+
+<isdecorate template="application/MenuFrame">
+<isinclude template="util/modules">
+<script type="text/javascript">
+    var  localizedStr = {
+            storeHintText:"${Resource.msg('EASalesReports.storeHintText', 'strings', null)}",
+            assocHintText:"${Resource.msg('EASalesReports.assocHintText', 'strings', null)}",
+            searchStores:"${Resource.msg('EASalesReports.searchStores', 'strings', null)}",
+            searchAssoc:"${Resource.msg('EASalesReports.searchAssoc', 'strings', null)}",
+            stores:"${Resource.msg('EASalesReports.stores', 'strings', null)}",
+            associates:"${Resource.msg('EASalesReports.associates', 'strings', null)}",
+            allAssoc:"${Resource.msg('EASalesReports.allAssoc', 'strings', null)}",
+            failedToLoadAssociates:"${Resource.msg('EASalesReports.failedToLoadAssociates', 'strings', null)}",
+            errorCustomEndDateBfStDate:"${Resource.msg('EASalesReports.errorCustomEndDateBfStDate', 'strings', null)}",
+            errorCustomMaxDateRange:"${Resource.msg('EASalesReports.errorCustomMaxDateRange', 'strings', null)}",
+            msgCustomMaxDateAllowed:"${Resource.msg('EASalesReports.msgCustomMaxDateAllowed', 'strings', null)}",
+            failedToLoadSalesReportData:"${Resource.msg('EASalesReports.failedToLoadSalesReportData', 'strings', null)}"
+            
+    };
+    
+    var  existingStores = <isprint value="${existingStores}" encoding="off"/>;
+    var  startOfWeekConfig = '<isprint value="${startOfWeekConfig}" encoding="off"/>';
+    var  countryConfiguration = <isprint value="${countryConfiguration}" encoding="off"/>;
+
+</script>
+
+<!-- importing bootstrap and other required style sheets -->
+<link rel="stylesheet/less" href="${URLUtils.staticURL('/bootstrap/css/bootstrap-namespaced.less')}" >
+<link rel="stylesheet/less" href="${URLUtils.staticURL('/css/offcanvas.css')}" >
+<link rel="stylesheet" href="${URLUtils.staticURL('/css/EASalesReports.css')}" >
+
+
+<!-- Page Navigator -->
+<isset name="preferencesURL"   value="${URLUtils.url('SiteNavigationBar-ShowMenuitemOverview', 'CurrentMenuItemId', 'site-prefs')}" scope="PAGE">
+<isset name="manageAssocURL"   value="${URLUtils.url('ManageAssociates-Start', 'SelectedMenuItem', 'site-prefs','CurrentMenuItemId', 'site-prefs', 'menuname', 'Manage Associates Extension','mainmenuname','Site Preferences')}" scope="PAGE" >
+<isbreadcrumbs bctext1="${Resource.msg('breadcrumb.preferences','strings',null)}" bcurl1="${preferencesURL}" bctext2="${Resource.msg('breadcrumb.manageAssociate','strings',null)}" bcurl2="${manageAssocURL}" bctext3="${Resource.msg('EASalesReports.title','strings',null)}" >
+<!-- EO Page Navigator -->
+
+<hr class="s" style="height:0px; width:100%; margin-top:30px;margin-bottom:30px; " id="EASeparator" >
+<div class="b-s light-gray-bg " style="display:none;" id="EAMainContainer" >
+<label id="countrySelectorLabel">${Resource.msg('EASalesReports.country', 'strings', null)}</label>
+<select id="EACountrySelector" class="form-control" style="width:150px;margin-bottom:20px">
+<option selected disabled>${Resource.msg("EASalesReports.country","strings",null)}</option>
+</select>
+<header class="clearfix">
+<!-- NAVIGATION BAR  -->
+<nav class="navbar navbar-default ea_navbar" id="salesReportNav">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <a class="navbar-brand"  data-toggle="offcanvas"  id="hamMenu"  role="button" href="${'#'}" onclick="event.preventDefault();">
+      <span class="sr-only">Toggle navigation</span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      </a>
+    </div>
+   
+       <div class="collapse navbar-collapse"> 
+        <ul class="nav navbar-nav">
+            <li><a href="${'#'}" id="storeAssocNavTitle" onclick="event.preventDefault();"></a></li>
+        </ul>
+          <ul class="nav navbar-nav navbar-right">
+            
+          </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- NAVIGATION BAR -->
+</header>
+
+<div class="container-fluid cbp-spmenu-push" >
+<nav class="cbp-spmenu cbp-spmenu-vertical cbp-spmenu-left" id="associatesList" >
+    <div>
+        <nav class="navbar navbar-default ea_navbar" id="storeAssocNav" style="margin-bottom: 0px;">
+          <div class="container-fluid">
+            <div class="navbar-header"  id="backToStoreListWrapper" style="margin-left: -15px;margin-right: -15px; display:none;">
+                 <a href="${'#'}" onclick="event.preventDefault();" id="backToStoreList"  ><span class="glyphicon glyphicon-arrow-left" aria-hidden="true" style="color:white;"></span></a>
+            </div>
+           
+               <div class="collapse navbar-collapse"> 
+                <ul class="nav navbar-nav">
+                    <li><a href="${'#'}" onclick="event.preventDefault();" id="storeAssocListTitle">${Resource.msg('EASalesReports.stores', 'strings', null)}</a></li>
+                </ul>
+            </div>
+          </div>
+        </nav>
+    </div>
+
+      <div id="selectStoreOrAssociateMsg" class="select-hint-msg" >
+          ${Resource.msg('EASalesReports.storeHintText', 'strings', null)}
+      </div>
+    <div id="searchStoresAssocsWrapper" style="padding:10px;  background-color:#B3B3B3;" class="input-group" >
+      <span class="input-group-addon glyphicon glyphicon-search" id="basic-addon1" style="top:0px!important;"></span>
+      <input type="text" id="searchAssociatesOrStores" placeholder="${Resource.msg('EASalesReports.searchStores', 'strings', null)}" class="form-control" style="z-index:0;">
+    </div>
+    <div id="employeeListWrapper">
+    </div>
+    <div id="sideBarOverlay" class="activity-indicator" style="height:100%;">
+        <div class="center-indicator">
+             <img  class="indicator" alt="${Resource.msg('EASalesReports.loading', 'strings', null)}" src="${URLUtils.staticURL('/images/ajax-loader.gif')}" id="" >
+        </div>
+    </div>
+</nav>
+<div id="mainUIOverlay" class="activity-indicator" >
+    <div class="help-overlay-text">
+        ${Resource.msg('EASalesReports.storeHintText', 'strings', null)}
+    </div>
+</div>
+    <div class="row" id="EASalesReportUI">
+      <div class="col-md-9 col-sm-9 no_left_right_padding  EA-margin" style="margin-top:2px;">
+          <div class="row shadow">
+                <div class="col-md-12 no_left_right_padding">
+                    <ul class="nav nav-pills nav-justified">
+                        <li id="todayRep" role="presentation" class="date-interval" ><a onclick="event.preventDefault();" href="${'#'}">${Resource.msg('EASalesReports.today', 'strings', null)}</a></li>
+                        <li id="weekRep" role="presentation" class=" date-interval active"><a onclick="event.preventDefault();" href="${'#'}">${Resource.msg('EASalesReports.week', 'strings', null)}</a></li>
+                        <li id="monthRep" role="presentation" class="date-interval"><a onclick="event.preventDefault();" href="${'#'}">${Resource.msg('EASalesReports.month', 'strings', null)}</a></li>
+                        <li id="quarterRep" role="presentation" class="date-interval"><a onclick="event.preventDefault();" href="${'#'}">${Resource.msg('EASalesReports.quarter', 'strings', null)}</a></li>
+                        <li id="customDateRep" role="presentation" class="date-interval"><a onclick="event.preventDefault();" href="${'#'}" >${Resource.msg('EASalesReports.custom', 'strings', null)}</a></li>
+                    </ul>
+                    <div class="row">
+                        <div class="col-md-12  date-container">
+                            <span id="dateIntervalInfo"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+              
+            
+            
+            <div class="row shadow" style="margin-top: 30px">
+                <div class="col-md-12 no_left_right_padding">
+                    <ul class="nav nav-pills nav-justified">
+                        <li id="fsd-"role="presentation" class="iframe-select active"  data-target="${'#'}iframesCarousel" data-slide-to="0" data-iframeid='salesIframe'><a onclick="event.preventDefault();" href="${'#'}">${Resource.msg('EASalesReports.sales', 'strings', null)}</a></li>
+                        <li role="presentation" class="iframe-select" data-target="${'#'}iframesCarousel" data-slide-to="1"  data-iframeid='itemsSoldIframe' ><a  onclick="event.preventDefault();" href="${'#'}">${Resource.msg('EASalesReports.itemsSold', 'strings', null)}</a></li>
+                        <li role="presentation"  class="iframe-select" data-target="${'#'}iframesCarousel" data-slide-to="2" data-iframeid='associatesRankingIframe'><a  onclick="event.preventDefault();" href="${'#'}">${Resource.msg('EASalesReports.assocRank', 'strings', null)}</a></li>
+                        <li role="presentation"  class="iframe-select" data-target="${'#'}iframesCarousel" data-slide-to="3" data-iframeid='storesRankingIframe'><a  onclick="event.preventDefault();" href="${'#'}">${Resource.msg('EASalesReports.storeRank', 'strings', null)}</a></li>
+                    </ul>
+                    <div class="row">
+                        <div class="col-md-12  carousel-wrapper ">
+                        
+                            <div id="iframesCarousel" class="carousel slide" data-ride="carousel" data-interval="false">
+                              
+                            
+                              <!-- Wrapper for slides -->
+                              <div class="carousel-inner" role="listbox">
+                                <div class="item active">
+                                  <div class="iframe-wrapper">
+                                      
+                                    <iframe class="iframe" id="salesIframe" src="" data-rooturl="../AjaxManageAssociates-Sales?" >
+                                    </iframe>
+                                    <div id="salesSpinner" class="activity-indicator">
+                                        <div class="center-indicator">
+                                             <img  class="indicator" alt="${Resource.msg('EASalesReports.loading', 'strings', null)}" src="${URLUtils.staticURL('/images/ajax-loader.gif')}" id="" >
+                                        </div>
+                                    </div>
+                                  </div>
+                                  <a id="reloadSalesRep"   class="reload-button shadow" style="right:0px;"  >
+                                      <span class="glyphicon glyphicon-repeat reload-icon"  aria-hidden="true"></span>
+                                  </a>
+                                </div>
+                                <div class="item" >
+                                  <div class="iframe-wrapper">
+                                    <iframe class="iframe"  id="itemsSoldIframe" src="" data-rooturl="../AjaxManageAssociates-ItemsSold?" >
+                                    </iframe>
+                                    <div id="itemsSoldSpinner" class="activity-indicator">
+                                        <div class="center-indicator">
+                                             <img  class="indicator" alt="${Resource.msg('EASalesReports.loading', 'strings', null)}" src="${URLUtils.staticURL('/images/ajax-loader.gif')}" id="" >
+                                        </div>
+                                    </div>
+                                  </div>
+                                  <a id="reloadItemsSoldRep"   class="reload-button shadow" style="right:0px;"  >
+                                      <span class="glyphicon glyphicon-repeat reload-icon"  aria-hidden="true"></span>
+                                  </a>
+                                </div>
+                                <div class="item">
+                                  <div class="iframe-wrapper">
+                                    <iframe class="iframe" id="associatesRankingIframe" src="" data-rooturl="../AjaxManageAssociates-AssociatesRanking?" >
+                                    </iframe>
+                                    <div id="associatesRankingSpinner" class="activity-indicator">
+                                        <div class="center-indicator">
+                                             <img  class="indicator" alt="${Resource.msg('EASalesReports.loading', 'strings', null)}" src="${URLUtils.staticURL('/images/ajax-loader.gif')}" id="" >
+                                        </div>
+                                    </div>
+                                  </div>
+                                  <a id="reloadAssociatesRankingRep"   class="reload-button shadow" style="right:0px;"  >
+                                      <span class="glyphicon glyphicon-repeat reload-icon"  aria-hidden="true"></span>
+                                  </a>
+                                </div>
+                                <div class="item">
+                                  <div class="iframe-wrapper">
+                                    <iframe class="iframe" id="storesRankingIframe" src="" data-rooturl="../AjaxManageAssociates-StoresRanking?" >
+                                    </iframe>
+                                    <div id="storesRankingSpinner" class="activity-indicator">
+                                        <div class="center-indicator">
+                                             <img  class="indicator" alt="${Resource.msg('EASalesReports.loading', 'strings', null)}" src="${URLUtils.staticURL('/images/ajax-loader.gif')}" id="" >
+                                        </div>
+                                    </div>
+                                  </div>
+                                  <a id="reloadStoresRankingRep"   class="reload-button shadow" style="right:0px;"  >
+                                      <span class="glyphicon glyphicon-repeat reload-icon"  aria-hidden="true"></span>
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+      </div>
+      <div class="col-md-2 col-sm-2 no_left_right_padding shadow EA-margin" style="margin-bottom: 24px; margin-top:2px;">
+          <div class="row">
+              <div class="col-md-12">
+                  <ul class="nav nav-pills nav-justified ">
+                    <li role="presentation" class=""  ><a class="header-title" href="${'#'}" onclick="event.preventDefault();">${Resource.msg('EASalesReports.quickStats', 'strings', null)}</a></li>
+                  </ul>
+              </div>
+          </div>
+          <div class="row  ">
+              <div class="col-md-12  " id="quickStatsColumn" style="height:600px !important; overflow-y:auto ;" > 
+              </div>
+          </div>
+          
+      </div>
+    </div>
+</div>
+
+
+
+<!-- Modal -->
+<div class="modal fade" id="datePickerModal" tabindex="-1" role="dialog" aria-labelledby="datePickerModalLabel">
+<div class="vertical-alignment-helper">
+  <div class="modal-dialog vertical-align-center" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="datePickerModalLabel" style="text-align: center; color:#7FBB00;">${Resource.msg('EASalesReports.customDates', 'strings', null)}</h4>
+      </div>
+      <div class="modal-body">
+         <div class="form-group">
+             <label for="customDateFrom">${Resource.msg('EASalesReports.from', 'strings', null)}</label>
+             <input type='text' class="form-control custom-dates"  id="customDateFrom" />
+            </div>
+         <div class="form-group">
+             <label for="customDateTo">${Resource.msg('EASalesReports.to', 'strings', null)}</label>
+             <input type='text' class="form-control custom-dates" id="customDateTo" />
+         </div>
+        
+      </div>
+      <div class="modal-footer" style="text-align: center;">
+        <button type="button" class="btn shadow ea-btn ea-btn-secondary" data-dismiss="modal" style="margin-right:10%;">${Resource.msg('EASalesReports.cancel', 'strings', null)}</button>
+        <button type="button" id="applyCustomDates" class="btn shadow ea-btn ea-btn-primary">${Resource.msg('EASalesReports.apply', 'strings', null)}</button>
+        <span style="margin-top:20px; margion-bottom:0px;" class="help-block" id="customDateErrorMsg">${Resource.msg('EASalesReports.msgCustomMaxDateAllowed', 'strings', null)}</span>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+
+</div>
+<!-- Importing required JavaScript libraries -->
+<script src="${URLUtils.staticURL('/js/less.min.js')}" ></script>
+<script src="${URLUtils.staticURL('/bootstrap/js/bootstrap.min.js')}" ></script>
+<script src="${URLUtils.staticURL('/js/moment-with-locales.min.js')}"></script>
+<script src="${URLUtils.staticURL('/bootstrap/js/bootstrap-datetimepicker.js')}"></script>
+<script src="${URLUtils.staticURL('/js/EASalesReports.js')}" ></script>
+</isdecorate>

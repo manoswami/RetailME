@@ -1,0 +1,49 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Script to fo the following 
+*    capture magnetic card data
+*    send encrypted data to decryption service
+*    create an object with credit card data
+*
+*
+*  @input Track1 : String Track 1 data from magnetic card.
+*  @input Track2 : String Track 2 data from magnetic card.
+*  @output giftCard : Object
+*
+*/
+importPackage( dw.system );
+
+function execute( args : PipelineDictionary ) : Number
+{
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("CaptureGiftCardData: entering script");
+
+    //get track data
+    var track1 = args.Track1;
+    var track2 = args.Track2;
+
+    //decrypt track data
+    var giftCardNumber : String = "";
+    var giftCardRecipient : String = "";
+    
+    
+    //test data
+    giftCardNumber = track2.substr(1, track2.indexOf("=", 0)-1);;
+
+    if (empty(giftCardNumber))
+        return PIPELET_ERROR;
+
+    //Create Xredit Card data object
+    args.giftCard = {
+        owner : giftCardRecipient,
+        num : giftCardNumber
+    };
+    
+    log.info("CaptureGiftCardData: exiting script without error");
+    return PIPELET_NEXT;
+}
+
+module.exports = {
+    execute : execute
+};

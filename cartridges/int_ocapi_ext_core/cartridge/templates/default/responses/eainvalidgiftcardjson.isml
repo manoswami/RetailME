@@ -1,0 +1,10 @@
+<iscontent type="application/json" />
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<isscript>
+    importScript("api/EAStatus.ds");
+    var eaStatus = new EAStatus();
+    eaStatus.findMessage("GIFTCARD_INVALID_CARD_NUMBER");
+    outputStr = eaStatus.stringify();
+</isscript>
+<isprint value="${outputStr}" encoding="off"/>

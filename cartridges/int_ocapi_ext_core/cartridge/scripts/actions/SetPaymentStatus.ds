@@ -1,0 +1,22 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Set the order export status to EXPORT_STATUS_READY
+*
+* @input Order : dw.order.Order The order.
+*/
+importPackage( dw.order );
+
+function execute( pdict : PipelineDictionary ) : Number {
+    // read pipeline dictionary input parameter
+    var order : Order = pdict.Order;
+
+    // set the export status to EXPORT_STATUS_READY
+    order.setPaymentStatus(Order.PAYMENT_STATUS_PAID);
+    
+    return PIPELET_NEXT;
+}
+
+module.exports = {
+    execute : execute
+};

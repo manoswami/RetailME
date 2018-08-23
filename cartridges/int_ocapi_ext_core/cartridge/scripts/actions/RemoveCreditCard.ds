@@ -1,0 +1,47 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+ * Remove credit card payment instrument.
+ *
+ *
+ * @input LineItemCtnr : dw.order.LineItemCtnr The basket.
+ * @input PaymentType : String the payment method of the payment instrument to create.
+ * @input CreditCardLastFour : String the payment method of the payment instrument to create.
+ * @input creditCard : Object
+ * @output Order : dw.order.LineItemCtnr The order.
+ *
+ */
+importPackage( dw.system );
+importPackage( dw.order );
+importPackage( dw.util );
+importPackage( dw.value );
+importPackage( dw.web );
+importScript("int_ocapi_ext_core:actions/GetCoreCartridgePath.ds");
+importScript(getCoreCartridgePath()+":checkout/Utils.ds");
+
+function execute( pdict : PipelineDictionary ) : Number {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("RemoveCreditCard: entering script");
+    var lineItemCtnr : LineItemCtnr = pdict.LineItemCtnr;
+    var paymentType : String = pdict.PaymentType;
+
+    // validate pipelet input parameters
+    if( lineItemCtnr == null || paymentType == null) {
+        return PIPELET_ERROR;
+    }
+    var lastFour : String = pdict.CreditCardLastFour;
+    if (!lastFour && pdict.creditCard) {
+        var ccNumber = pdict.creditCard.num;
+        lastFour = ccNumber.substr(ccNumber.length-4);
+    }
+
+    // remove credit card payment instruments from the basket
+    removeExistingPaymentInstruments( lineItemCtnr,  paymentType + " " + lastFour );
+    log.info("RemoveCreditCard: exiting script without error");
+    pdict.Order = lineItemCtnr;
+    return PIPELET_NEXT;
+}
+
+module.exports = {
+    execute : execute
+};

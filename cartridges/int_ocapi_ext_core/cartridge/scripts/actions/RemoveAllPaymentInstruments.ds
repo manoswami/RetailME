@@ -1,0 +1,33 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Remove all payment instruments from an Order object.
+
+*   @input Order : dw.order.Order
+*
+*/
+importPackage( dw.system );
+importPackage( dw.order );
+importPackage( dw.util );
+
+importScript("api/EAStatus.ds");
+
+function execute( args : PipelineDictionary ) : Number {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("RemoveAllPaymentInstruments: entering script");
+    var order : Order = args.Order;
+    var pis : Collection = order.paymentInstruments;
+    var iPIs : Iterator = pis.iterator();
+    var pi : PaymentInstrument = null;
+
+    while( iPIs.hasNext() ) {
+        pi = iPIs.next();
+        order.removePaymentInstrument(pi);
+    }
+    log.info("RemoveAllPaymentInstruments: exiting script without error");
+    return PIPELET_NEXT;
+}
+
+module.exports = {
+    execute : execute
+}

@@ -1,0 +1,182 @@
+/**
+* ©2015-2018 salesforce.com, inc. All rights reserved.
+*
+*   This script is used to validate the addresses set in EA.  This is only meant as an example for how the data is to be sent back
+*   to EA for Address Validation.  Changes will need to be made below to make a service call to do the address validation.  This script will
+*   get the data from the service and then sent back to EA for display purposes.  The address is either verified, can't be 
+*   verified or has recommended addresses.
+*   @input OrderAddress : dw.order.OrderAddress 
+*   @input CustomerAddress : dw.customer.CustomerAddress 
+*   @output JSONResponse : Object
+*/
+
+importPackage( dw.system );
+importPackage( dw.util );
+// These will be needed when you implement the address verification service
+//importPackage( dw.net );
+//importPackage( dw.crypto );
+importPackage( dw.order );
+importPackage( dw.customer );
+
+/*
+ * This should be modified to use your address verification service to verify the addresses
+ */
+function execute( args : PipelineDictionary ) : Number {
+    args.JSONResponse = "";
+    var status = PIPELET_NEXT;
+    var avsEnabled = Site.current.preferences.custom.eaAVSEnabled;
+    if (avsEnabled == false) {
+        return PIPELET_NEXT;
+    }
+
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("AddressValidationRequest: entering script");
+
+    //create the list of alternative addresses
+    var addrObj : List = new ArrayList();
+    
+    var orderAddress : OrderAddress = args.OrderAddress;
+    var customerAddress : CustomerAddress = args.CustomerAddress;
+    var verifyAddress : Object = null;
+
+    //we can't make the call without the address!
+    if (orderAddress != null) {
+        if (orderAddress.c_skipVerify) {
+            return PIPELET_NEXT;
+        }
+        verifyAddress = new Object();
+        verifyAddress.address1 = orderAddress.address1;
+        verifyAddress.address2 = orderAddress.address2; 
+        verifyAddress.city = orderAddress.city;
+        verifyAddress.stateCode = orderAddress.stateCode;
+        verifyAddress.postalCode = orderAddress.postalCode;
+
+    }
+    if (customerAddress != null) {
+        if (customerAddress.c_skipVerify) {
+            return PIPELET_NEXT;
+        }
+        verifyAddress = new Object();
+        verifyAddress.address1 = customerAddress.address1;
+        verifyAddress.address2 = customerAddress.address2; 
+        verifyAddress.city = customerAddress.city;
+        verifyAddress.stateCode = customerAddress.stateCode;
+        verifyAddress.postalCode = customerAddress.postalCode;
+    }
+    try {    
+        if(verifyAddress != null){
+            var resultCode;
+            log.info("AddressValidationRequest: calling validation");
+            // This is only here as an example, instead there would be a call to the service with the 
+            // order address.  The ResultCode and addrObj would then get setup accordingly.
+            if (verifyAddress.address2 === "invalid") {
+                // empty pick list display as the address is invalid and alternatives can't
+                // be determined from address
+                resultCode = 'E';
+                status = PIPELET_ERROR;
+            } else if ( verifyAddress.address2 === "alts") {
+                // address was not complete and alternative addresses are available
+                resultCode = 'C';
+                addrObj.add({
+                    line1 : '5 Wall St',
+                    city : 'Burlington',
+                    state : 'MA',
+                    postalCode : '01803'
+                });
+                addrObj.add({
+                    line1 : '6 Wall St',
+                    city : 'Burlington',
+                    state : 'MA',
+                    postalCode : '01803'
+                });
+                addrObj.add({
+                    line1 : '7 Wall St',
+                    city : 'Burlington',
+                    state : 'MA',
+                    postalCode : '01803'
+                });
+                addrObj.add({
+                    line1 : '8 Wall St',
+                    city : 'Burlington',
+                    state : 'MA',
+                    postalCode : '01803'
+                });
+                addrObj.add({
+                    line1 : '9 Wall St',
+                    city : 'Burlington',
+                    state : 'MA',
+                    postalCode : '01803'
+                });
+                addrObj.add({
+                    line1 : '10 Wall St',
+                    city : 'Burlington',
+                    state : 'MA',
+                    postalCode : '01803'
+                });
+                status = PIPELET_ERROR;
+            } else {
+                // address was verified
+                resultCode = 'V';
+            }
+            // This would be set based on the response from the address verification service
+            args.JSONResponse = formatResults("200", addrObj, resultCode, verifyAddress);
+        } else {
+            Logger.error("Error in AddressValidationRequest.ds with error: No order address.");
+            return PIPELET_ERROR;
+        }
+    } catch(e) {
+        Logger.error("Error in AddressValidationRequest.ds with error" + e);
+        return PIPELET_ERROR;
+    }
+    log.info("AddressValidationRequest: exiting script without error");
+    return status;
+}
+
+/* 
+ * This is the format that EA expects the response data for address verification.  The json formatting should not be modified.
+ */
+function formatResults(serviceStatusCode : String, addrObjs : List, resultCode : String, verifyAddress : Object) : Object {
+    var json;
+    var verificationLevel : String = "";
+    if (resultCode == 'V'){
+        verificationLevel = "Verified";
+    } else if(resultCode == 'C') {
+        verificationLevel = "Recommended";
+    } else {
+        verificationLevel = "InvalidAddress";
+    }    
+    json = {
+        httpStatus : serviceStatusCode,
+        givenAddress : { 
+            Address1 : verifyAddress.address1, 
+            Address2 : verifyAddress.address2 ? verifyAddress.address2 : '', 
+            city : verifyAddress.city, 
+            stateCode : verifyAddress.stateCode, 
+            postalCode : verifyAddress.postalCode
+        },
+        verificationLevel : verificationLevel
+    };
+
+    var addrItr : Iterator = addrObjs.iterator();
+    if(addrItr.hasNext()){
+        json.pickListDisplay = [];
+    }
+    while (addrItr.hasNext()) {
+        var addr  = addrItr.next();
+        json.pickListDisplay.push({
+            Address1 : addr.line1,
+            Address2 : addr.line2 ? addr.line2 : '',
+            city : addr.city, 
+            stateCode : addr.state ? addr.state : '',
+            postalCode : addr.postalCode ? addr.postalCode : ''
+        });
+    }
+    return json;
+}
+
+function AddressValidationRequest() {
+}
+
+AddressValidationRequest.prototype.validateAddress = function (args) {
+    return execute(args);
+};

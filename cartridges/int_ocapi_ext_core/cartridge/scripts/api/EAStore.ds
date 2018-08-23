@@ -1,0 +1,42 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Store call
+* SSL cleartext passwrd
+* @author jmoody
+**/
+
+importPackage( dw.system );
+importPackage( dw.catalog );
+importPackage( dw.object );
+importPackage( dw.util );
+
+function EAStore() {
+    this.eastore = null;
+    this.isError = false;
+    this.eaStatusCode = "EA_200";
+}
+
+EAStore.prototype.stringify =  function() {
+    return JSON.stringify(this);
+};
+
+
+EAStore.prototype.findStore = function (storeId : String) {
+    if (!empty(storeId)) {
+        // Retrive Store details
+        var storeObj : dw.catalog.Store = dw.catalog.StoreMgr.getStore(storeId);
+        
+        if (!empty(storeObj)) {
+            this.eastore = storeObj;
+        } else {
+            this.isError = true;
+            this.eaStatusCode = "EA_STORE_404";
+        }
+    } else {
+        this.isError = true;
+        this.eaStatusCode = "EA_STORE_400";
+    }
+    
+    return this.eastore;
+}

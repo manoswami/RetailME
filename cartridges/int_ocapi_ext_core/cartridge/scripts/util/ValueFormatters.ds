@@ -1,0 +1,14 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* formatting values
+*/
+function ValueFormatters(){}
+
+ValueFormatters.formatFixedValueOrNull = function( valueOrNull, precision ) {
+    precision = precision || 2;
+    if( valueOrNull != null) {
+        return valueOrNull.toFixed( precision );
+    }
+    return 0.0;
+};

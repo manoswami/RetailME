@@ -1,0 +1,57 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Functions to retrieve permission groups
+*
+*/
+
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.util );
+
+function PermissionGroup(allowItemPriceOverrideByAmount, allowItemPriceOverrideByPercent, allowItemPriceOverrideFixedPrice, 
+    allowLOBO, allowAdmin, allowShippingOverrideByAmount, allowShippingOverrideByPercent, allowShippingOverrideFixed,
+    itemPriceOverrideMaxPercent, shippingPriceOverrideMaxPercent, allowManagerOverrides,accessSalesReports,
+    accessStoreLevelSalesReports) {
+    this.allowItemPriceOverrideByAmount=allowItemPriceOverrideByAmount;
+    this.allowItemPriceOverrideByPercent=allowItemPriceOverrideByPercent;
+    this.allowItemPriceOverrideFixedPrice=allowItemPriceOverrideFixedPrice;
+    this.allowLOBO=allowLOBO;
+    this.allowAdmin=allowAdmin;
+    this.allowShippingOverrideByAmount = allowShippingOverrideByAmount;
+    this.allowShippingOverrideByPercent = allowShippingOverrideByPercent; 
+    this.allowShippingOverrideFixed = allowShippingOverrideFixed;
+    this.itemPriceOverrideMaxPercent = itemPriceOverrideMaxPercent ? itemPriceOverrideMaxPercent : 1;
+    this.shippingPriceOverrideMaxPercent = shippingPriceOverrideMaxPercent ? shippingPriceOverrideMaxPercent : 1;
+    this.allowManagerOverrides = allowManagerOverrides;
+    this.accessSalesReports = accessSalesReports;
+    this.accessStoreLevelSalesReports = accessStoreLevelSalesReports;
+}
+
+PermissionGroup.retrieve = function (permissionGroupId : String) {
+    var ret = {}; 
+    var permission : CustomObject = CustomObjectMgr.getCustomObject("permissionGroup",permissionGroupId);
+    
+    if(!empty(permission)){
+        var allowManagerOverrides = "allowManagerOverrides" in permission.custom && permission.custom.allowManagerOverrides.valueOf ? permission.custom.allowManagerOverrides : false;
+        var permissionObj = new PermissionGroup(
+            permission.custom.allowItemPriceOverrideByAmount,
+            permission.custom.allowItemPriceOverrideByPercent,
+            permission.custom.allowItemPriceOverrideFixedPrice,
+            permission.custom.allowLOBO,
+            permission.custom.allowAdmin,
+            permission.custom.allowShippingOverrideByAmount,
+            permission.custom.allowShippingOverrideByPercent,
+            permission.custom.allowShippingOverrideFixed, 
+            permission.custom.itemPriceOverrideMaxPercent.value, 
+            permission.custom.shippingPriceOverrideMaxPercent.value,
+            allowManagerOverrides,
+            permission.custom.accessSalesReports,
+            permission.custom.accessStoreLevelSalesReports);
+            
+        ret[permission.custom.permissionGroupId] = permissionObj;
+        
+    }
+    
+    return ret;
+}

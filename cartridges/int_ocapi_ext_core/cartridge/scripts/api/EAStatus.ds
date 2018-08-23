@@ -1,0 +1,45 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Script file to read the error code from resource file and return the error message
+*
+*/
+importPackage( dw.system );
+
+function EAStatus() {
+    this.httpStatus = 200;
+    this.fault = null;
+}
+
+EAStatus.prototype.stringify =  function() {
+    return JSON.stringify(this);
+};
+
+
+EAStatus.prototype.findMessage = function (statusCode : String) {
+    
+    // Retrive errormessage
+    var eaString : String = dw.web.Resource.msg(statusCode, 'eastatus', null);
+    var eaMessageArray : Array = eaString.split("|");
+    
+    if (eaMessageArray.length > 0) {
+        this.httpStatus = eaMessageArray[0];
+        var faultObject = {
+            type : eaMessageArray[1]
+        };
+        if (eaMessageArray.length > 3) {
+            faultObject = {
+                type : eaMessageArray[1],
+                message : eaMessageArray[2],
+                description : eaMessageArray[3]
+            };
+        } else if (eaMessageArray.length > 2) {
+            faultObject = {
+                type : eaMessageArray[1],
+                message : eaMessageArray[2]
+            };
+        }
+        this.fault = faultObject;
+    }
+    return this;
+};

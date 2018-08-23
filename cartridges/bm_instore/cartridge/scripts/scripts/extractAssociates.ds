@@ -1,0 +1,30 @@
+/**
+* ©2015-2018 salesforce.com, inc. All rights reserved.
+*
+* extractAssociates.ds - extract associate from store
+*
+*   @input StoreID : String 
+*   @input EmployeeJSON : String
+*   @input StoreList : dw.util.List
+*
+*   @output NewStoreList : Object
+*
+*/
+importPackage( dw.system );
+importPackage( dw.util );
+
+function execute( args : PipelineDictionary ) : Number
+{
+    var storeId : String = args.StoreID;
+    var employeeStr : String = args.EmployeeJSON;
+    var storeList : List = args.StoreList;
+    
+    var newStoreList : List = JSON.parse(employeeStr);
+
+    if (storeList != null) {
+        args.NewStoreList = storeList.add(newStoreList);
+    } else {
+        args.NewStoreList = newStoreList;
+    }
+    return PIPELET_NEXT;
+}

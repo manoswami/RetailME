@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<custom-objects xmlns="http://www.demandware.com/xml/impex/customobject/2006-10-31">
+    <custom-object type-id="associates" object-id="A1234">
+        <object-attribute attribute-id="firstName">Joe</object-attribute>
+        <object-attribute attribute-id="hashedCode">f36f8e58a718fab7e4ab20f590b37931b657dac14d6648df5c01fa8f454f1ee051e53c9faf1b29904a5824b2b88758ce8b317116285d533bcd9dcf79c7e147ff</object-attribute>
+        <object-attribute attribute-id="isLocked">false</object-attribute>
+        <object-attribute attribute-id="lastName">Associate</object-attribute>
+        <object-attribute attribute-id="loginAttempts">0</object-attribute>
+        <object-attribute attribute-id="permissionGroupId">associate</object-attribute>
+        <object-attribute attribute-id="salt">u4YbfOj76c6K5WhSzIlownBfS49oCtTQmEKYUS91XGNLYQhHWuD11vECkc41CILi</object-attribute>
+    </custom-object>
+
+    <custom-object type-id="associates" object-id="A5678">
+        <object-attribute attribute-id="firstName">Jane</object-attribute>
+        <object-attribute attribute-id="hashedCode">bf3060189ecf954c819d7b4fc64069ffc3386b119c6ea701bdefac8e2ab8cc06bfba44c061bade641d7cf0c9183747747b2858977bd24f59530f351e6549f136</object-attribute>
+        <object-attribute attribute-id="isLocked">false</object-attribute>
+        <object-attribute attribute-id="lastName">Manager</object-attribute>
+        <object-attribute attribute-id="loginAttempts">0</object-attribute>
+        <object-attribute attribute-id="permissionGroupId">manager</object-attribute>
+        <object-attribute attribute-id="salt">kYQpuFtunBAe7gUdT0iDr1JPjzgvcT9b1oHAqnkUwZtSVwd13tvoKvO9zPvOaqtO</object-attribute>
+    </custom-object>
+
+    <custom-object type-id="associates" object-id="A9999">
+        <object-attribute attribute-id="firstName">Mode</object-attribute>
+        <object-attribute attribute-id="hashedCode">2a72d741760287a0340b56bd0a688692dfe9489c142eaf143543ff356373494c98264a9aaa9b62fc3f59dc6e0a5fcb1a7f45d3ff606252335ac2f86632bab2cd</object-attribute>
+        <object-attribute attribute-id="isLocked">false</object-attribute>
+        <object-attribute attribute-id="lastName">Kiosk</object-attribute>
+        <object-attribute attribute-id="loginAttempts">0</object-attribute>
+        <object-attribute attribute-id="permissionGroupId">kiosk</object-attribute>
+        <object-attribute attribute-id="salt">GKK2pqyJWNrpmGiUoovp8U6zTrs5uJvB2KnfjTPLzmgLXWnVqGCwRwbDYBb8B3xi</object-attribute>
+    </custom-object>
+
+</custom-objects>

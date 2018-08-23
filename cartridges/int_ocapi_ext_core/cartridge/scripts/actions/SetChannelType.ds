@@ -1,0 +1,37 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Add a note to a failed order indicating why the order failed.
+
+*   @input Basket : dw.order.Basket
+*
+*/
+importPackage( dw.system );
+importPackage( dw.order );
+importPackage( dw.util );
+
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = setChannelType(args.Basket);
+    if (result.success) {
+        return PIPELET_NEXT;
+    }
+}
+
+/**
+ * setChannelType - set the channel type to DSS
+ * @param : basket
+ */
+function setChannelType(basket) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("setChannelType: entering script");
+    if (basket) {
+        basket.setChannelType(LineItemCtnr.CHANNEL_TYPE_DSS);
+    }    
+    log.info("setChannelType: exiting script without error");
+    return {success : true};
+}
+
+module.exports = {
+    setChannelType : setChannelType
+};

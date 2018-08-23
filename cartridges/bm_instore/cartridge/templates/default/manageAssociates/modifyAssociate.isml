@@ -1,0 +1,108 @@
+<iscontent type="text/html" charset="UTF-8"/>
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<isdecorate template="application/MenuFrame">
+<isinclude template="util/modules">
+
+<!-- Page Navigator -->
+<isset name="preferencesURL"   value="${URLUtils.url('SiteNavigationBar-ShowMenuitemOverview', 'CurrentMenuItemId', 'site-prefs')}" scope="PAGE">
+<isset name="manageAssocURL"   value="${URLUtils.url('ManageAssociates-Start', 'SelectedMenuItem', 'site-prefs','CurrentMenuItemId', 'site-prefs', 'menuname', 'Manage Associates Extension','mainmenuname','Site Preferences')}" scope="PAGE" >
+<isbreadcrumbs bctext1="${Resource.msg('breadcrumb.preferences','strings',null)}" bcurl1="${preferencesURL}" bctext2="${Resource.msg('breadcrumb.manageAssociate','strings',null)}" bcurl2="${manageAssocURL}" bctext3="${Resource.msg('modifyassociate.headerTitle', 'strings', null)}" >
+<!-- EO Page Navigator -->
+
+
+
+<isscript>
+    var empCO : dw.object.CustomObject = dw.object.CustomObjectMgr.getCustomObject("associates", pdict.AssociateId);
+    var selectedString = empCO.custom.isLocked ? "checked" : "";
+</isscript>
+<form action="${dw.web.URLUtils.continueURL()}" method="POST" name="add">
+        <input type="hidden" name="storeid" value="${pdict.StoreId}"/>
+        <input type="hidden" name="selectedStoreId" value="${pdict.CurrentHttpParameterMap.selectedStoreId.value?pdict.CurrentHttpParameterMap.selectedStoreId.value:''}"/>
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" >            
+            <tr>
+                <td width="100%" class="w e s table_title">
+                    <isprint value="${Resource.msg('modifyassociate.title','strings',null)}"/>${empCO.custom.firstName} ${empCO.custom.lastName} (${empCO.custom.employeeId})
+                </td>
+            </tr>
+            <tr>
+                <td width="100%" style="font-weight:bold">
+                    <p><isprint value="${Resource.msg('modifyassociate.description','strings',null)}"/></p><br>
+                </td>
+            </tr>
+            <!-- errors -->
+            <isif condition="${!empty(pdict.ErrorStatus)}"> 
+            <tr>
+                <td>
+                    <table border="0" cellspacing="0" cellpadding="4" width="100%" class="error_box n s e w">
+                        <tr valign="top">
+                            <td class="error_icon top e"><img src="${URLUtils.webRoot()}/images/error.gif" width="16" height="15" alt="" border="0"/></td>
+                            <td class="error top" width="100%">
+                            <p>Error: <isprint value="${pdict.ErrorStatus}"><br/>
+                            </td>
+                        </tr>
+                    </table>
+                    <br>
+                </td>
+            </tr>
+            </isif>
+            
+            <!-- end errors-->
+            <tr>
+                <td>
+                    <table border="0" cellpadding="0" cellspacing="0" class="w e s" width="100%">
+                        <tr>
+                            <td class="table_header s n" colspan="2">
+                                ${dw.web.Resource.msg('modifyassociate.headerTitle', 'strings', null)}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fielditem2 " align="right"  nowrap="nowrap">
+                                <isprint value="${Resource.msg('modifyassociate.firstName','strings',null)}"/>
+                                <span class="star">*</span>
+                            </td>
+                            <td width="100%"><input type="text" name="firstname" size="40" value="${empCO.custom.firstName}"></td>
+                        </tr>
+                        <tr>
+                            <td class="fielditem2 " align="right"  nowrap="nowrap">
+                                <isprint value="${Resource.msg('modifyassociate.lastName','strings',null)}"/>
+                                <span class="star">*</span>
+                            </td>
+                            <td width="100%"><input type="text" name="lastname" size="40" value="${empCO.custom.lastName}"></td>
+                        </tr>
+                        <tr>
+                            <td class="fielditem2 " align="right"  nowrap="nowrap">
+                                <isprint value="${Resource.msg('modifyassociate.permissionGroupId','strings',null)}"/>
+                                <span class="star">*</span>
+                            </td>
+                            <td width="100%">
+                                <select name="permissions">
+                                    <isloop items="${pdict.PermissionGroupList}" var="permission" status="pgLoop">
+                                        <isif condition="${empCO.custom.permissionGroupId == permission.custom.permissionGroupId}">
+                                             <option value="${permission.custom.permissionGroupId}" selected='selected'>&nbsp;<isprint value="${permission.custom.permissionGroupName + ' (' + permission.custom.permissionGroupId +')'}" encoding="off"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</option>
+                                         <iselse>
+                                             <option value="${permission.custom.permissionGroupId}">&nbsp;<isprint value="${permission.custom.permissionGroupName + ' (' + permission.custom.permissionGroupId +')'}" encoding="off"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</option>
+                                         </isif>
+                                     </isloop>
+                                </select>
+                            </td>
+                        </tr>            
+                        <tr>
+                            <td align="right" class="fielditem2 n" colspan="2" nowrap="nowrap">
+                                <table border="0" cellspacing="4" cellpadding="0">
+                                    <tbody>
+                                        <tr>
+                                            <td class="button"><input type="submit" id="apply" class="button" value="${Resource.msg('modifyassociate.apply','strings',null)}" name="apply"></td>
+                                            <td class="button"><input type="submit" class="button" value="${Resource.msg('modifyassociate.cancel','strings',null)}" name="cancel"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </form>
+</isdecorate>
+    

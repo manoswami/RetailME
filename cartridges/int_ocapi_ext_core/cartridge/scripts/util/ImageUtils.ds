@@ -1,0 +1,30 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* ImageUtils - utility to get image urls for product images
+*/
+importPackage( dw.system );
+importScript("int_ocapi_ext_core:actions/GetSettings.ds");
+
+function ImageUtils(){}
+
+ImageUtils.getImageURL = function( product, viewType ) {
+    var imageURL = '';
+    var settings = {};
+    var site : Site = Site.getCurrent();
+    var sitePrefs : SitePreferences = site.getPreferences();
+    loadPrefSettings( sitePrefs, settings);
+    var viewTypeName = settings.image_service.view_type[viewType];
+    if(viewTypeName) {
+        var image : MediaFile = product.getImage(viewTypeName);
+        if(image) {
+            var dynamicSize = JSON.parse(settings.image_service.dynamic_size[viewType]);
+            if(settings.image_service.type === "disImageService" && dynamicSize) {
+                imageURL = image.getAbsImageURL({scaleWidth:dynamicSize.sw, scaleHeight:dynamicSize.sh, scaleMode:dynamicSize.sm, format:'jpg'});
+            } else {
+               imageURL = image.getAbsURL();
+            }
+        }
+    }
+    return imageURL.toString();
+};

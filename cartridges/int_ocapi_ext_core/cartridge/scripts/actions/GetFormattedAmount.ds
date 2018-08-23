@@ -1,0 +1,42 @@
+/**
+* ©2017-2018 salesforce.com, inc. All rights reserved.
+*
+* GetFormattedAmount.ds - returns a formatted amount based on the currency
+*
+*  @input currencyFormat : String
+*  @input currencyLocale : String 
+*  @input thousands : String 
+*  @input decimal : String 
+*  @input amount : Number
+*  @output formattedAmount : String
+*
+*/
+
+var numeral = require("int_ocapi_ext_core/cartridge/static/default/js/numeral.min");
+
+function execute( args : PipelineDictionary ) : Number
+{
+   var formattedAmount = getFormattedAmount(args.currencyFormat, args.currencyLocale, args.thousands, args.decimal, args.amount);
+   if(formattedAmount){
+        args.formattedAmount = formattedAmount;
+        return PIPELET_NEXT;
+   }
+}
+
+function getFormattedAmount(currencyFormat, currencyLocale, thousands, decimal, amount){
+    numeral.language(currencyLocale, {
+        delimiters : {
+            thousands : thousands,
+            decimal : decimal
+        },
+        currency : {
+            symbol : session.getCurrency().getSymbol()
+        }
+    });
+    var formattedAmount = numeral(amount).format(currencyFormat);
+    return formattedAmount;
+}
+
+module.exports = {
+	getFormattedAmount : getFormattedAmount
+};

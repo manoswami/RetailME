@@ -1,0 +1,42 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+* 
+* Check the request method for valid type
+*
+*  @input CurrentRequest : dw.system.Request 
+*  @input enforcedMethod : String
+*
+*/
+importPackage( dw.system );
+importPackage( dw.util );
+
+function execute( args : PipelineDictionary ) : Number
+{
+    var result = checkMethod(args.enforcedMethod,args.CurrentRequest);
+    if(result == true){
+        return PIPELET_NEXT;
+    }
+    else{
+        return PIPELET_ERROR;
+    }
+}
+
+/**
+ * checkMethod - check the HTTP request method
+ * @param : enforcedMethod
+ * @param : currentRequest
+ */ 
+function checkMethod(enforcedMethod,currentRequest){
+    var httpHeadersMap : Map = currentRequest.getHttpHeaders();
+    var method : String = httpHeadersMap.get("x-is-request_method");
+    
+    if (enforcedMethod == null) {
+        enforcedMethod = "POST";
+    }
+    return method.equalsIgnoreCase(enforcedMethod);
+
+}
+
+module.exports = {
+    checkMethod : checkMethod
+};

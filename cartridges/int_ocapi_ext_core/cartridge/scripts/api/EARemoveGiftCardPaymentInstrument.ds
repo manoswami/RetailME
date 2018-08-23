@@ -1,0 +1,35 @@
+/**
+ * ©2013-2018 salesforce.com, inc. All rights reserved.
+ * Removes a gift certificate payment instrument with the given gift certificate ID 
+ * from the basket.
+ *
+ * @input Order : dw.order.Order
+ * @input lastFourGiftCard : String The Gift Certificate ID.
+ */
+
+importPackage( dw.order );
+importPackage( dw.system );
+importPackage( dw.util );
+
+function execute( pdict : PipelineDictionary ) : Number {
+    var order : Order = pdict.Order;
+    var lastFourGiftCardCode : String = pdict.lastFourGiftCard;
+
+    var gcPaymentInstrs : Collection = order.getGiftCertificatePaymentInstruments();
+    var iter : Iterator = gcPaymentInstrs.iterator();
+    var existingPI : OrderPaymentInstrument = null;
+
+    // remove specific gift card payment 
+    // iterate over the list of payment instruments
+    while( iter.hasNext() ) {
+        existingPI = iter.next();
+        if (lastFourGiftCardCode.equalsIgnoreCase(existingPI.giftCertificateID.substr(existingPI.giftCertificateID.length-4, 4))) {
+            order.removePaymentInstrument( existingPI );
+        }
+    }
+    return PIPELET_NEXT;
+}
+
+module.exports = {
+    execute : execute
+};

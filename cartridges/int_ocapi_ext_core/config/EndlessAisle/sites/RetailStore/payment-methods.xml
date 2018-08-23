@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<payment-settings xmlns="http://www.demandware.com/xml/impex/paymentsettings/2009-09-15">
+
+    <payment-method method-id="EA_Credit_Card">
+        <name xml:lang="x-default">Credit Card Payment Method for Store</name>
+        <enabled-flag>false</enabled-flag>
+        <processor-id>EACreditCard</processor-id>
+        <custom-attributes>
+            <custom-attribute attribute-id="eaRequireSignature">true</custom-attribute>
+            <custom-attribute attribute-id="eaIsContactless">false</custom-attribute>
+        </custom-attributes>
+    </payment-method>
+
+</payment-settings>

@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?demandware-pipeline version="2.0"?>
+
+<pipeline type="view">
+  <branch basename="Add">
+    <segment>
+      <node>
+        <start-node name="Add" secure="true"/>
+        <node-display x="0" y="0"/>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="source" x="0" y="1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <pipelet-node pipelet-name="Script" pipelet-set-identifier="bc_api">
+          <config-property key="Transactional" value="true"/>
+          <config-property key="OnError" value="PIPELET_ERROR"/>
+          <config-property key="ScriptFile" value="scripts/ajaxAddAssociate.ds"/>
+          <key-binding alias="ScriptLog" key="ScriptLog"/>
+          <key-binding alias="CurrentHttpParameterMap.employee_id.value" key="AssociateId"/>
+          <key-binding alias="CurrentHttpParameterMap.firstname.value" key="FirstName"/>
+          <key-binding alias="CurrentHttpParameterMap.lastname.value" key="LastName"/>
+          <key-binding alias="CurrentHttpParameterMap.password.value" key="Password"/>
+          <key-binding alias="CurrentHttpParameterMap.permissions.value" key="Permissions"/>
+          <key-binding alias="CurrentHttpParameterMap.storeId.value" key="StoreId"/>
+          <key-binding alias="allAssociates" key="allAssociates"/>
+          <key-binding alias="ErrorStatus" key="ErrorStatus"/>
+          <key-binding alias="CurrentHttpParameterMap.currentStoreID.value" key="currentStoreId"/>
+          <key-binding alias="CurrentHttpParameterMap.currentStoreID.value" key="CurrentStoreId"/>
+          <key-binding alias="allPermissions" key="allPermissions"/>
+          <key-binding alias="createdAssociateId" key="createdAssociateId"/>
+          <key-binding alias="employeeIdsArray" key="employeeIdsArray"/>
+          <key-binding alias="CurrentRequest.httpParameters.employeeIds" key="employeeIds"/>
+        </pipelet-node>
+        <node-display x="0" y="1"/>
+        <branch basename="b2" source-connector="error">
+          <transition target-connector="in2">
+            <transition-display>
+              <bend-point relative-to="target" x="0" y="-2"/>
+            </transition-display>
+          </transition>
+          <segment>
+            <node>
+              <join-node/>
+              <node-display x="2" y="1"/>
+            </node>
+            <simple-transition>
+              <transition-display>
+                <bend-point relative-to="source" x="0" y="1"/>
+              </transition-display>
+            </simple-transition>
+            <node>
+              <interaction-node transaction-required="false">
+                <template buffered="true" dynamic="false" name="manageAssociates/ajaxAddAssociateErrorResponse"/>
+              </interaction-node>
+              <node-display x="0" y="1"/>
+            </node>
+          </segment>
+        </branch>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="target" x="0" y="-1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <interaction-node transaction-required="false">
+          <template buffered="true" dynamic="false" name="manageAssociates/ajaxAddAssociateResponse"/>
+        </interaction-node>
+        <node-display x="0" y="2"/>
+      </node>
+    </segment>
+  </branch>
+  <branch basename="Edit">
+    <segment>
+      <node>
+        <start-node name="Edit" secure="true"/>
+        <node-display x="3" y="0"/>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="source" x="0" y="1"/>
+          <bend-point relative-to="source" x="-1" y="1"/>
+          <bend-point relative-to="target" x="-1" y="0"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <pipelet-node pipelet-name="Script" pipelet-set-identifier="bc_api">
+          <config-property key="Transactional" value="true"/>
+          <config-property key="OnError" value="PIPELET_ERROR"/>
+          <config-property key="ScriptFile" value="scripts/ajaxEditAssociate.ds"/>
+          <key-binding alias="ScriptLog" key="ScriptLog"/>
+          <key-binding alias="CurrentHttpParameterMap.employee_id.value" key="AssociateId"/>
+          <key-binding alias="CurrentHttpParameterMap.firstname.value" key="FirstName"/>
+          <key-binding alias="CurrentHttpParameterMap.lastname.value" key="LastName"/>
+          <key-binding alias="CurrentHttpParameterMap.password.value" key="Password"/>
+          <key-binding alias="CurrentHttpParameterMap.permissions.value" key="Permissions"/>
+          <key-binding alias="CurrentHttpParameterMap.storeId.value" key="StoreId"/>
+          <key-binding alias="ErrorStatus" key="ErrorStatus"/>
+          <key-binding alias="jsonResponse" key="jsonResponse"/>
+          <key-binding alias="CurrentHttpParameterMap.confirmed.value" key="Confirmed"/>
+          <key-binding alias="textData" key="EditAssociateJSONResponse"/>
+        </pipelet-node>
+        <node-display orientation="horizontal" x="0" y="1"/>
+        <branch basename="b2" source-connector="error">
+          <transition target-connector="in1"/>
+          <segment>
+            <node>
+              <join-node/>
+              <node-display x="0" y="1"/>
+            </node>
+            <transition target-connector="in1" target-path="/Add.1/b2.1"/>
+          </segment>
+        </branch>
+      </node>
+      <transition target-connector="in1" target-path="./+1"/>
+    </segment>
+    <segment>
+      <node>
+        <join-node/>
+        <node-display x="1" y="0"/>
+      </node>
+      <simple-transition/>
+      <node>
+        <interaction-node transaction-required="false">
+          <template buffered="true" dynamic="false" name="manageAssociates/ajaxResponse"/>
+        </interaction-node>
+        <node-display x="0" y="2"/>
+      </node>
+    </segment>
+  </branch>
+  <branch basename="LockUnlock">
+    <segment>
+      <node>
+        <start-node call-mode="public" name="LockUnlock" secure="true"/>
+        <node-display x="5" y="0"/>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="source" x="0" y="1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <pipelet-node pipelet-name="Script" pipelet-set-identifier="bc_api">
+          <config-property key="Transactional" value="true"/>
+          <config-property key="OnError" value="PIPELET_ERROR"/>
+          <config-property key="ScriptFile" value="scripts/ajaxLockUnlockAssociate.ds"/>
+          <key-binding alias="ScriptLog" key="ScriptLog"/>
+          <key-binding alias="CurrentHttpParameterMap.employeeID.value" key="AssociateId"/>
+          <key-binding alias="CurrentHttpParameterMap.lockedOut.value" key="LockedOut"/>
+          <key-binding alias="ErrorStatus" key="ErrorStatus"/>
+          <key-binding alias="textData" key="LockUnlockedJSONResponse"/>
+        </pipelet-node>
+        <node-display x="0" y="1"/>
+        <branch basename="b2" source-connector="error">
+          <transition target-connector="in3" target-path="/Edit.1/b2.1">
+            <transition-display>
+              <bend-point relative-to="source" x="1" y="0"/>
+              <bend-point relative-to="source" x="1" y="1"/>
+              <bend-point relative-to="target" x="0" y="-1"/>
+            </transition-display>
+          </transition>
+        </branch>
+      </node>
+      <transition target-connector="in3" target-path="/Edit.2"/>
+    </segment>
+  </branch>
+  <branch basename="Sales">
+    <segment>
+      <node>
+        <start-node name="Sales" secure="true"/>
+        <node-display x="7" y="0"/>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="source" x="0" y="1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <call-node start-name-ref="EAReports-Sales"/>
+        <node-display x="0" y="1"/>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="target" x="0" y="-1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <end-node/>
+        <node-display x="0" y="2"/>
+      </node>
+    </segment>
+  </branch>
+  <branch basename="AssociatesRanking">
+    <segment>
+      <node>
+        <start-node name="AssociatesRanking" secure="true"/>
+        <node-display x="8" y="0"/>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="source" x="0" y="1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <call-node start-name-ref="EAReports-AssociatesRanking"/>
+        <node-display x="0" y="1"/>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="target" x="0" y="-1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <end-node/>
+        <node-display x="0" y="2"/>
+      </node>
+    </segment>
+  </branch>
+  <branch basename="Associates">
+    <segment>
+      <node>
+        <start-node name="Associates" secure="true"/>
+        <node-display x="0" y="5"/>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="source" x="0" y="1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <pipelet-node pipelet-name="Script" pipelet-set-identifier="bc_api">
+          <config-property key="Transactional" value="true"/>
+          <config-property key="OnError" value="PIPELET_ERROR"/>
+          <config-property key="ScriptFile" value="scripts/ajaxGetAssociates.ds"/>
+          <key-binding alias="ScriptLog" key="ScriptLog"/>
+          <key-binding alias="CurrentHttpParameterMap.employee_id.value" key="AssociateId"/>
+          <key-binding alias="CurrentHttpParameterMap.firstname.value" key="FirstName"/>
+          <key-binding alias="CurrentHttpParameterMap.lastname.value" key="LastName"/>
+          <key-binding alias="CurrentHttpParameterMap.password.value" key="Password"/>
+          <key-binding alias="CurrentHttpParameterMap.permissions.value" key="Permissions"/>
+          <key-binding alias="CurrentHttpParameterMap.storeId.value" key="StoreId"/>
+          <key-binding alias="allAssociates" key="allAssociates"/>
+          <key-binding alias="ErrorStatus" key="ErrorStatus"/>
+          <key-binding alias="CurrentRequest.httpParameters.employeeIds" key="employeeIds"/>
+          <key-binding alias="CurrentHttpParameterMap.currentStoreID.value" key="currentStoreId"/>
+          <key-binding alias="CurrentHttpParameterMap.currentStoreID.value" key="CurrentStoreId"/>
+          <key-binding alias="textData" key="JSONResponse"/>
+        </pipelet-node>
+        <node-display x="0" y="1"/>
+        <branch basename="b2" source-connector="error">
+          <transition target-connector="in1" target-path="/Edit.1/b2.1">
+            <transition-display>
+              <bend-point relative-to="source" x="6" y="0"/>
+            </transition-display>
+          </transition>
+        </branch>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="target" x="0" y="-1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <interaction-node transaction-required="false">
+          <template buffered="true" dynamic="false" name="manageAssociates/ajaxResponse"/>
+        </interaction-node>
+        <node-display x="0" y="2"/>
+      </node>
+    </segment>
+  </branch>
+  <branch basename="ItemsSold">
+    <segment>
+      <node>
+        <start-node name="ItemsSold" secure="true"/>
+        <node-display x="7" y="4"/>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="source" x="0" y="1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <call-node start-name-ref="EAReports-ItemsSold"/>
+        <node-display x="0" y="1"/>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="target" x="0" y="-1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <end-node/>
+        <node-display x="0" y="2"/>
+      </node>
+    </segment>
+  </branch>
+  <branch basename="StoresRanking">
+    <segment>
+      <node>
+        <start-node name="StoresRanking" secure="true"/>
+        <node-display x="8" y="4"/>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="source" x="0" y="1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <call-node start-name-ref="EAReports-StoresRanking"/>
+        <node-display x="0" y="1"/>
+      </node>
+      <simple-transition>
+        <transition-display>
+          <bend-point relative-to="target" x="0" y="-1"/>
+        </transition-display>
+      </simple-transition>
+      <node>
+        <end-node/>
+        <node-display x="0" y="2"/>
+      </node>
+    </segment>
+  </branch>
+</pipeline>

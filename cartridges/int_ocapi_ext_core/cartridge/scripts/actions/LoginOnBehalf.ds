@@ -1,0 +1,61 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Generate out for the Login on behalf of action
+*
+*  @input CustomerNotFoundError : Boolean Customer Not found.
+*  @input LoboError : Boolean LOBO Error.
+*  @input AuthError : Boolean Agent not logged in error.
+*  @input BadRequestError : Boolean Request doesn't conform error.
+*  @output Output : String
+*
+*/
+
+importPackage( dw.system );
+importScript("api/EAStatus.ds");
+
+function execute( args : PipelineDictionary ) : Number {
+    var output = logOnBehalf(args);
+    if (output) {
+        return PIPELET_NEXT;
+    }
+}
+
+/**
+ * logOnBehalf - logs an associate in on behalf of customer
+ * @param args
+ */
+function logOnBehalf(args) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("LoginOnBehalf: entering script");
+    var output;
+    var eaStatus = new EAStatus();
+
+    if (args.BadRequestError) {
+        eaStatus.findMessage("EA_EMP_AUTH_4000");
+        output = eaStatus.stringify();
+        
+    } else if (args.AuthError) {
+        eaStatus.findMessage("EA_EMP_AUTH_403");
+        output = eaStatus.stringify();
+        
+    } else if (args.CustomerNotFoundError) {
+        eaStatus.findMessage("EA_LOBO_404");
+        output = eaStatus.stringify();
+    
+    } else if (args.LoboError) {
+        eaStatus.findMessage("EA_LOBO_401");
+        output = eaStatus.stringify();
+    
+    } else {
+        //Get Basket data if available
+        output = '{Basket: "Data"}';
+    }
+    log.info("LoginOnBehalf: result is: " + output);
+    log.info("LoginOnBehalf: exiting script without error");
+    return {Output : output};
+}
+
+module.exports={
+    logOnBehalf : logOnBehalf
+};

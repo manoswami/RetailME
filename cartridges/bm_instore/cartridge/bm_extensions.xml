@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!-- ©2013-2018 salesforce.com, inc. All rights reserved. -->
+<extensions xmlns="http://www.demandware.com/xml/bmmodules/2007-12-11" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.demandware.com/xml/bmmodules/2007-12-11 bmext.xsd">
+<!-- =============================================================== -->
+<!-- ==                                                           == -->
+<!-- ==  SITE   MENU   EXTENSIONS                                 == -->
+<!-- ==                                                           == -->
+<!-- =============================================================== -->
+<!-- This file shows you an example how to create your own Business Manager Extensions.
+    It integrates custom menu items and corresponding pages on three places:
+    1. "DEMO Site Menu Extension" - Menu item within the site specific menu
+    2. "DEMO Site Submenu Extension within an existing Menu" - Menu within the existing "Site Preferences"
+    3. "DEMO Admin Extension" - Menu item within the Administration Menu
+    This file uses the pipeline "custom_extensionsactions" and includes two templates
+        - /extensions/adminmenupageextension
+        - /extensions/sitemenupageextension
+
+    Please make sure that your new menuitems and menuactions get unique ids.
+    If you use ids from the original Business Manager your menu items are not shown!
+    You can include your menu extensions into existing menus by referencing them in the menupath.
+    The Business Manager Menu IDs you find at the end of this file
+-->
+
+<menuaction id="manage_associates_id01" menupath="site-prefs" position="9998" site="true">
+  <name xml:lang="x-default">Manage Store Associates</name>
+  <short_description xml:lang="x-default">Manage Store Associates</short_description>
+  <description xml:lang="x-default">
+      Manage store associate information.
+  </description>
+  <exec pipeline="ManageAssociates" node="Start"/>
+  <sub-pipelines>
+     <pipeline name="ManageAssociates-Start" />
+     <pipeline name="ManageAssociates-Show" />
+     <pipeline name="ManageAssociates-ErrorStart" />
+     <pipeline name="ManageAssociates-AddAssociate" />
+     <pipeline name="ManageAssociates-Add" />
+     <pipeline name="ManageAssociates-DeleteAssociate" />
+     <pipeline name="ManageAssociates-Delete"/>
+     <pipeline name="ManageAssociates-ChangePassword" />
+     <pipeline name="ManageAssociates-Password" />     
+     <pipeline name="ManageAssociates-ChangePermissions" />
+     <pipeline name="ManageAssociates-Permissions" />
+     <pipeline name="ManageAssociates-ModifyAssociate" />
+     <pipeline name="ManageAssociates-Modify" />
+     <pipeline name="ManageAssociates-ChangeStoreManagerPassword" />
+     <pipeline name="ManageAssociates-StorePassword" />
+     <pipeline name="ManageAssociates-AddStore" />
+     <pipeline name="ManageAssociates-CreateStore" />
+     <pipeline name="ManageAssociates-EASalesReports" />
+     <pipeline name="AjaxManageAssociates-Add" />
+     <pipeline name="AjaxManageAssociates-Edit" />
+     <pipeline name="AjaxManageAssociates-LockUnlock" />
+     <pipeline name="AjaxManageAssociates-Sales" />
+     <pipeline name="AjaxManageAssociates-ItemsSold" />
+     <pipeline name="AjaxManageAssociates-StoresRanking" />
+     <pipeline name="AjaxManageAssociates-AssociatesRanking" />
+     <pipeline name="AjaxManageAssociates-Associates" />
+     
+  </sub-pipelines>
+  <parameters>
+    <parameter name="menuname" value="Manage Associates Extension"/>
+    <parameter name="mainmenuname" value="Site Preferences"/>
+  </parameters>
+  <icon>icons/admin.png</icon>
+</menuaction>
+
+</extensions>
+

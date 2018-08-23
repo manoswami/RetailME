@@ -1,0 +1,41 @@
+<iscontent type="application/json" />
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<!--- JSON Output for Customer Search --->
+
+<isif condition="${pdict.customerList}">
+    {
+        "httpStatus" : 200,
+        "customers" : [
+            <isloop items="${pdict.customerList}" var="customerObj" status="loopstate1">
+                {
+                    "customer_no" : "${customerObj.customerNo}",
+                    "first_name" : "${customerObj.firstName}",
+                    "last_name" : "${customerObj.lastName}",
+                    "login" : "${customerObj.credentials.login}",
+                    "email" : "${customerObj.email}",
+                    "phone_home" : "${customerObj.phoneHome}"
+                    <isset name="addressObj" value="${customerObj.addressBook.preferredAddress}" scope="page"/>
+                    <isif condition="${empty(addressObj) && !empty(customerObj.addressBook.getAddresses())}">
+                        <isset name="addressObj" value="${customerObj.addressBook.getAddresses().get(0)}" scope="page"/>
+                    </isif>
+                    <isif condition="${!empty(addressObj)}">
+                        <isset name="countryObj" value="${addressObj.countryCode.displayValue}" scope="page"/>
+                        ,
+                        "addresses" : [{
+                            "address_id" : "${addressObj.ID}",
+                            "address1" : "${addressObj.address1}",
+                            "address2" : "${addressObj.address2}",
+                            "city" : "${addressObj.city}",
+                            "state_code" : "${addressObj.stateCode}",
+                            "postal_code" : "${addressObj.postalCode}",
+                            "country_code" : "${countryObj}"
+                        }]
+                    </isif>
+                }<isif condition="${!(loopstate1.last)}">,</isif>
+            </isloop>
+        ]
+    }
+<iselse>
+    <isprint value="${pdict.errorJson}" encoding="off"/>
+</isif>

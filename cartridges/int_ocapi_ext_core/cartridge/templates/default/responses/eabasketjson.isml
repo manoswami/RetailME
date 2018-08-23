@@ -1,0 +1,402 @@
+<iscontent type="application/json" charset="UTF-8" />
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<isif condition="${empty(pdict.errorJson)}">
+    <!---
+    <isscript>
+        importScript("api/EABasket.ds");
+        var eaBasket = new EABasket();
+        var literal = eaBasket.getCurrent(pdict.Basket);
+        var jsonLiteral = JSON.stringify(literal, null, "\t");        
+    </isscript>
+    <isprint value="${jsonLiteral}" encoding="off"/>
+     --->
+     <isscript>
+         importScript("util/ValueFormatters.ds");
+        importScript("util/ImageUtils.ds");
+     </isscript>
+     <isset name="etag" value="null" scope="page"/>
+     <isset name="basket" value="${pdict.Basket}" scope="page"/>
+     <isif condition="${!empty(pdict.Basket)}">
+         <isset name="etag" value="${basket.getEtag()}" scope="page"/>
+     </isif>
+    <isif condition="${(empty(pdict.Basket) || pdict.Basket.allProductLineItems.size() == 0) && !empty(pdict.Order)}">
+         <isset name="basket" value="${pdict.Order}" scope="page"/>
+         <isset name="etag" value="null" scope="page"/>
+     </isif>
+     
+     <isif condition="${empty(basket) || basket.allProductLineItems.size() == 0}">
+
+     <!--- Basket/ Order is empty --->
+        {
+        "httpStatus":200,
+        "_flash": [
+            {
+                "checkout": "${Resource.msg("basket.empty", "eaapi", null)}"
+            }
+         ],
+         <isif condition="${!empty(etag)}">
+          "etag": "${etag}",
+          </isif>
+          "enable_checkout":false
+         }
+     <iselse>
+
+        <!--- Basket JSON Output --->
+        {
+        "httpStatus":200,
+        <isif condition="${!empty(pdict.EnableCheckout) && !pdict.EnableCheckout}">
+        "_flash": [
+            {
+                "checkout": "${Resource.msg("basket.notready.forcheckout", "eaapi", null)}"
+            }
+         ],
+      
+         "enable_checkout":false,
+         <iselse>
+             <isif condition="${!empty(pdict.Basket) && pdict.Basket.allProductLineItems.size() != 0}">
+                 "enable_checkout":true,
+             </isif>         
+        </isif>
+        <isif condition="${'orderNo' in basket}">
+        "order_no" : "${basket.orderNo}",
+        "etag": "${basket.getEtag()}",
+        <iselse>
+        "etag": "${etag}",
+        </isif>
+        "creation_date" : "<isprint value="${basket.creationDate}" style="DATE_LONG"/>", 
+        <isif condition="${'confirmationStatus' in basket}">
+        "confirmation_status" : "${basket.confirmationStatus}",
+        </isif>
+        
+        <iscomment> This logic taken from Site Genesis </iscomment>
+        <isscript>
+            var status = "";
+            if ('getStatus' in basket) {
+                if ((basket.getStatus() == dw.order.Order.ORDER_STATUS_NEW || basket.getStatus() == dw.order.Order.ORDER_STATUS_OPEN) && 
+                    (basket.getShippingStatus() == dw.order.Order.SHIPPING_STATUS_SHIPPED) || 
+                    (basket.getStatus() == dw.order.Order.ORDER_STATUS_COMPLETED)) {
+                        status = dw.web.Resource.msg('order.status.shipped.msg', 'order', null);
+                } else if ((basket.getStatus() == dw.order.Order.ORDER_STATUS_NEW || basket.getStatus() == dw.order.Order.ORDER_STATUS_OPEN) && 
+                           (basket.getShippingStatus() != dw.order.Order.SHIPPING_STATUS_SHIPPED)) {
+                        status = dw.web.Resource.msg('order.status.processed.msg', 'order', null);
+                } else if (basket.getStatus() == dw.order.Order.ORDER_STATUS_CANCELLED) {
+                        status = dw.web.Resource.msg('order.status.cancelled.msg', 'order', null);
+                } else {
+                        status = basket.status.displayValue;    
+                }
+            }
+        </isscript>
+        <isif condition="${!empty(status)}">
+        "order_status": "${status}",
+        </isif>
+        
+        <isscript>    
+            //  Compute total order Discounts 
+            var orderDiscounts = 0.0;
+            for (var i=0; i< basket.priceAdjustments.length; i++) {
+                var pa = basket.priceAdjustments[i];
+                if (pa.promotion.promotionClass == dw.campaign.Promotion.PROMOTION_CLASS_ORDER) {
+                    orderDiscounts += pa.priceValue;
+                }
+            }
+        </isscript>
+        
+        "orderDiscounts" : "${orderDiscounts}",
+        "currency" : "${basket.currencyCode}",
+        <isif condition="${!empty(basket.adjustedMerchandizeTotalNetPrice.valueOrNull)}">
+        "product_sub_total" : ${basket.adjustedMerchandizeTotalNetPrice.valueOrNull - orderDiscounts},
+        "product_total" : ${ValueFormatters.formatFixedValueOrNull( basket.adjustedMerchandizeTotalNetPrice.valueOrNull, 2 )},
+        </isif>
+        <isif condition="${!empty(basket.getAdjustedShippingTotalPrice().valueOrNull)}">
+        "shipping_total" : ${ValueFormatters.formatFixedValueOrNull( basket.getAdjustedShippingTotalPrice().valueOrNull, 2 )},
+        </isif>
+        <isif condition="${!empty(basket.shippingTotalNetPrice.valueOrNull)}">
+        "shipping_total_excluding_discount" : ${ValueFormatters.formatFixedValueOrNull( basket.shippingTotalNetPrice.valueOrNull, 2 )},
+        </isif>
+        <iscomment>calculate shipping discount</iscomment>
+        <isscript>
+            var shippingExclDiscounts : dw.value.Money = basket.shippingTotalPrice;
+            var shippingInclDiscounts : dw.value.Money = basket.getAdjustedShippingTotalPrice();
+            var shippingDiscount : dw.value.Money = shippingExclDiscounts.subtract( shippingInclDiscounts );
+        </isscript>
+        <isif condition="${!empty(shippingDiscount.valueOrNull)}">
+        "shipping_discount" : ${ValueFormatters.formatFixedValueOrNull( shippingDiscount.valueOrNull, 2 )},
+        </isif>
+        <isset name="shippingBasePrice" value="${new dw.value.Money(0.0, session.getCurrency().getCurrencyCode())}" scope="page"/>
+        <isset name="shippingBasePriceOverride" value="${new dw.value.Money(0.0, session.getCurrency().getCurrencyCode())}" scope="page"/>
+        <isif condition="${!empty(basket.shippingTotalNetPrice.valueOrNull)}">
+        "shipping_total_base_price" : ${ValueFormatters.formatFixedValueOrNull( basket.shippingTotalNetPrice.subtract(shippingBasePriceOverride).add(shippingBasePrice).valueOrNull, 2 )},
+        </isif>
+          <isif condition="${!empty(basket.totalTax.valueOrNull)}">
+        "tax_total" : ${ValueFormatters.formatFixedValueOrNull( basket.totalTax.valueOrNull, 2 )},
+        </isif>
+        <isif condition="${!empty(basket.totalGrossPrice.valueOrNull)}">
+        "order_total" : ${ValueFormatters.formatFixedValueOrNull( basket.totalGrossPrice.valueOrNull, 2 )},
+        "payment_balance" : <isif condition="${empty(pdict.paymentBalance)}">${ValueFormatters.formatFixedValueOrNull( basket.totalGrossPrice.valueOrNull, 2 )}<iselse>${pdict.paymentBalance}</isif>,
+        </isif>
+        "product_items" : [
+            <isloop items="${basket.allProductLineItems}" var="productLineItem" status="loopstate1">
+            <isif condition="${!productLineItem.bundledProductLineItem && !productLineItem.optionProductLineItem}">
+            <isif condition="${!(loopstate1.first)}">,</isif>
+            {
+            "product_id" : "${productLineItem.productID}",
+            "item_text" : "${productLineItem.lineItemText}",
+            "quantity" : ${productLineItem.quantityValue},
+            "product_name" : "${productLineItem.productName}",
+            "base_price" : ${ValueFormatters.formatFixedValueOrNull( productLineItem.product.priceModel.price.valueOrNull, 2 )},
+            "base_price_override" : ${ValueFormatters.formatFixedValueOrNull( productLineItem.basePrice.valueOrNull, 2 )},
+            "price" : ${ValueFormatters.formatFixedValueOrNull( productLineItem.adjustedPrice.valueOrNull, 2 )},
+            "thumbnailUrl" : "${ImageUtils.getImageURL(productLineItem.product, 'cart')}",
+            <isif condition="${productLineItem.bundledProductLineItems.size() > 0}">
+            "bundled_product_items" : 
+              [
+              <isloop items="${productLineItem.bundledProductLineItems}" var="bundledProductLineItem" status="loopstate2">
+                {
+                  "product_id" : "${bundledProductLineItem.productID}",
+                  "item_text" : "${bundledProductLineItem.lineItemText}",
+                  "quantity" : ${bundledProductLineItem.quantityValue},
+                  "product_name" : "${bundledProductLineItem.productName}"
+                }<isif condition="${!(loopstate2.last)}">,</isif>
+              </isloop>
+              ],
+              </isif>
+              <isif condition="${productLineItem.optionProductLineItems.size() > 0}">
+              "option_items" : 
+              [
+              <isloop items="${productLineItem.optionProductLineItems}" var="optionProductLineItem" status="loopstate2">
+                {
+                  "option_id" : "${optionProductLineItem.optionID}",            
+                  "option_value_id" : "${optionProductLineItem.optionValueID}",
+                  "item_text" : "${optionProductLineItem.lineItemText}",
+                  "quantity" : ${optionProductLineItem.quantityValue},
+                  "base_price" : ${ValueFormatters.formatFixedValueOrNull( optionProductLineItem.basePrice.valueOrNull, 2 )},
+                  "price" : ${ValueFormatters.formatFixedValueOrNull( optionProductLineItem.price.valueOrNull, 2 )}
+                }<isif condition="${!(loopstate2.last)}">,</isif>
+              </isloop>
+              ],
+              </isif>
+              <isif condition="${productLineItem.priceAdjustments.size() > 0}">
+              "price_adjustments" :
+              [
+              <isloop items="${productLineItem.priceAdjustments}" var="priceAdjustment" status="loopstate2">
+                {
+                  "promotion_id" : "${priceAdjustment.promotionID}",
+                  <!---"promotion_link" : "http://example.com/dw/shop/v13_1/promotions/${priceAdjustment.promotionID}",--->
+                  "item_text" : "${priceAdjustment.lineItemText}",
+                  "price" : ${priceAdjustment.priceValue}
+                }<isif condition="${!(loopstate2.last)}">,</isif>
+                </isloop>
+              ],
+              </isif>   
+            <iscomment>Product Existence and Product Availability, applicable only to basket</iscomment>
+            <iscomment>  Commented out for now because this section is generating invalid JSON </iscomment>
+            <isif condition="${!empty(pdict.Basket) && pdict.Basket.allProductLineItems.size() != 0}">
+                <isif condition="${!productLineItem.bonusProductLineItem || productLineItem.getBonusDiscountLineItem() != null}">
+                    "message": "${pdict.AvailabilityMessageMap.get(productLineItem.productID)}",
+                </isif> 
+            </isif>
+            "previous_basket" : "false"
+            }
+            </isif>
+            </isloop>
+            ],
+          "shipments":[
+              <isloop items="${basket.shipments}" var="shipment" status="loopstate1">
+              {
+                "id":"${shipment.ID}",
+                "isGift": "${shipment.gift}"
+                 <isif condition="${!empty(shipment.giftMessage)}">
+                 ,
+                "giftMessage": "${shipment.giftMessage}"
+                </isif>
+                <isset name="shippingAddress" value="${shipment.shippingAddress}" scope="page"/>
+                <isif condition="${!empty(shippingAddress)}">
+                ,
+                "shipping_address":{
+                 <isif condition="${!empty(shipment.shippingAddress.salutation)}">
+                  "salutation":"${shipment.shippingAddress.salutation}",
+                 </isif>
+                 <isif condition="${!empty(shipment.shippingAddress.title)}">
+                  "title":"${shipment.shippingAddress.title}",
+                 </isif>
+                 <isif condition="${!empty(shipment.shippingAddress.companyName)}">
+                  "company_name":"${shipment.shippingAddress.companyName}",
+                 </isif>
+                  "first_name":"${shipment.shippingAddress.firstName}",
+                 <isif condition="${!empty(shipment.shippingAddress.secondName)}">
+                  "second_name":"${shipment.shippingAddress.secondName}",
+                 </isif>
+                  "last_name":"${shipment.shippingAddress.lastName}",
+                  "postal_code":"${shipment.shippingAddress.postalCode}",
+                  "address1":"${shipment.shippingAddress.address1}",
+                 <isif condition="${!empty(shipment.shippingAddress.address2)}">
+                  "address2":"${shipment.shippingAddress.address2}",
+                 </isif>
+                  "city":"${shipment.shippingAddress.city}",
+                 <isif condition="${!empty(shipment.shippingAddress.postBox)}">
+                  "post_box":"${shipment.shippingAddress.postBox}",
+                 </isif>
+                  "country_code":"${shipment.shippingAddress.countryCode}",
+                  "state_code":"${shipment.shippingAddress.stateCode}"
+                 <isif condition="${!empty(shipment.shippingAddress.phone)}">
+                 ,
+                  "phone":"${shipment.shippingAddress.phone}"
+                 </isif>
+                 <isif condition="${!empty(shipment.shippingAddress.suffix)}">
+                  ,
+                  "suffix":"${shipment.shippingAddress.suffix}"
+                 </isif>
+                }
+                </isif>
+                <isif condition="${!empty(basket.defaultShipment.shippingMethodID)}">
+                ,
+                "shipping_method":{
+                  "id":"${basket.defaultShipment.shippingMethodID}",
+                  "name":"${basket.defaultShipment.shippingMethod.displayName}",
+                  "description":"Order received within 7-10 business days"
+                }
+                </isif>
+                <isif condition="${!empty(basket.customerEmail)}">
+                ,
+                "customer_info":{
+                    "email":"${basket.customerEmail}"
+                 }
+                </isif>
+            }
+            <isif condition="${!(loopstate1.last)}">,</isif>
+            </isloop>
+            ],
+        <isif condition="${basket.priceAdjustments.size() > 0}">
+        "order_price_adjustments" :
+          [
+            <isloop items="${basket.priceAdjustments}" var="priceAdjustment" status="loopstate2">
+            {
+              "promotion_id" : "${priceAdjustment.promotionID}",
+               <!---"promotion_link" : "http://example.com/dw/shop/v13_1/promotions/${priceAdjustment.promotionID}",--->
+               "item_text" : "${priceAdjustment.lineItemText}",
+               "price" : ${priceAdjustment.priceValue}
+            }<isif condition="${!(loopstate2.last)}">,</isif>
+            </isloop>
+          ],
+        </isif>
+        <isif condition="${basket.couponLineItems.size() > 0}">
+        "coupons" :
+          [
+            <isloop items="${basket.couponLineItems}" var="couponLineItems" status="loopstate2">
+            {
+              "coupon_applied" : "${couponLineItems.applied}",
+              "coupon_code" : "${couponLineItems.couponCode}",
+              "coupon_price_adjustments" :
+              [
+                <isloop items="${couponLineItems.priceAdjustments}" var="couponPriceAdjustment" status="loopstate3">
+                {
+                  "promotion_id" : "${couponPriceAdjustment.promotionID}",
+                   <!---"promotion_link" : "http://example.com/dw/shop/v13_1/promotions/${priceAdjustment.promotionID}",--->
+                   "item_text" : "${couponPriceAdjustment.lineItemText}",
+                   "price" : ${couponPriceAdjustment.priceValue}
+                }<isif condition="${!(loopstate3.last)}">,</isif>
+                </isloop>
+                ]
+                }<isif condition="${!(loopstate2.last)}">,</isif>
+            </isloop>
+          ],
+        </isif>
+        <isif condition="${!empty(basket.billingAddress)}">
+        "billing_address" :
+            {
+            "full_name" : "${basket.billingAddress.fullName}",
+            "first_name" : "${basket.billingAddress.firstName}",
+            "last_name" : "${basket.billingAddress.lastName}",
+            "address_id" : "${basket.billingAddress.UUID}",
+            "address1" : "${basket.billingAddress.address1}",
+            <isif condition="${!empty(basket.billingAddress.address2)}">
+            "address2" : "${basket.billingAddress.address2}",
+            </isif>
+            "city" : "${basket.billingAddress.city}",
+            "state_code" : "${basket.billingAddress.stateCode}",
+            "postal_code" : "${basket.billingAddress.postalCode}",
+            "country_code" : "${basket.billingAddress.countryCode}"
+            },
+        </isif>
+        <isif condition="${basket.paymentInstruments.size() > 0}">
+        "payment_details" : [
+            <isloop items="${basket.paymentInstruments}" var="paymentInstrument" status="loopstate1">
+            {
+            "status" : "ok",
+            "credit_card_holder_name" : "${paymentInstrument.creditCardHolder}",
+             <isif condition="${!empty(paymentInstrument.custom.eaRequireSignature)}">
+                "require_signature": "${paymentInstrument.custom.eaRequireSignature}",
+            </isif>
+             <isif condition="${!empty(paymentInstrument.custom.eaIsContactless)}">
+                "is_contactless": "${paymentInstrument.custom.eaIsContactless}",
+            </isif>
+            <isif condition="${empty(paymentInstrument.creditCardNumberLastDigits)}">
+                "last_four_digits" : "${paymentInstrument.giftCertificateID.substr(paymentInstrument.giftCertificateID.length-4, 4)}",
+            <iselse>
+                "last_four_digits" : "${paymentInstrument.creditCardNumberLastDigits}",
+            </isif>
+            <isif condition="${empty(paymentInstrument.maskedCreditCardNumber)}">
+                "masked_number" : "${paymentInstrument.maskedGiftCertificateCode}",
+            <iselse>
+                "masked_number" : "${paymentInstrument.maskedCreditCardNumber}",
+            </isif>
+            <isif condition="${!empty(paymentInstrument.creditCardExpirationMonth)}">
+            "exp_month" : "${paymentInstrument.creditCardExpirationMonth}",
+            </isif>
+            <isif condition="${!empty(paymentInstrument.creditCardExpirationYear)}">
+            "exp_yr" : "${paymentInstrument.creditCardExpirationYear}",
+            </isif>
+            <isif condition="${!empty(paymentInstrument.creditCardType)}">
+            "credit_card_type" : "${paymentInstrument.creditCardType}",
+            </isif>
+            "amt_auth" : ${ValueFormatters.formatFixedValueOrNull( paymentInstrument.paymentTransaction.amount.valueOrNull, 2 )},
+            <isif condition="${!empty(paymentInstrument.paymentMethod)}">
+            "payment_method" : "${paymentInstrument.paymentMethod}"
+            </isif>
+            }
+            <isif condition="${!(loopstate1.last)}">,</isif>
+            </isloop>
+            ],
+        </isif>
+        
+        <isset name="DiscountPlan" value="${dw.campaign.PromotionMgr.getDiscounts(basket)}" scope="page" />
+        <!--- Approaching order promotions --->
+        <isif condition="${!empty(DiscountPlan)}">
+            "approaching_order_promotions" : [
+            <isloop items="${DiscountPlan.getApproachingOrderDiscounts()}" var="approachingdiscount">
+            {
+                "amount_to_qualify" : ${ValueFormatters.formatFixedValueOrNull( approachingdiscount.getDistanceFromConditionThreshold().valueOrNull, 2 )},
+                "promotion_description" : "${approachingdiscount.getDiscount().getPromotion().getCalloutMsg()}",
+                "promotion_message" : "<isprint value="${dw.util.StringUtils.trim(Resource.msg('approachingpromo.purchase','checkout',null))}" encoding="on"/> <isprint value="${ValueFormatters.formatFixedValueOrNull( approachingdiscount.getDistanceFromConditionThreshold().valueOrNull, 2 )}" encoding="on"/> <isprint value="${dw.util.StringUtils.trim(Resource.msg('approachingpromo.more','checkout',null))}" encoding="on"/> <isprint value="${dw.util.StringUtils.trim(Resource.msg('approachingpromo.receive','checkout',null))}" encoding="on"/> <isprint value="${approachingdiscount.getDiscount().getPromotion().getCalloutMsg()}" encoding="on"/>"
+            }
+            </isloop>
+            ],
+            
+            <!--- Approaching shipping promotions (for default shipment) --->
+            "approaching_shipping_promotions" : [
+            <isloop items="${DiscountPlan.getApproachingShippingDiscounts(basket.getDefaultShipment())}" var="approachingdiscount">
+            {
+                "amount_to_qualify" : ${ValueFormatters.formatFixedValueOrNull( approachingdiscount.getDistanceFromConditionThreshold().valueOrNull, 2 )},
+                "promotion_description" : "<isprint value="${approachingdiscount.getDiscount().getPromotion().getCalloutMsg()}" encoding="on"/>",
+                "promotion_message" : "<isprint value="${dw.util.StringUtils.trim(Resource.msg('approachingpromo.purchase','checkout',null))}" encoding="on"/> <isprint value="${ValueFormatters.formatFixedValueOrNull( approachingdiscount.getDistanceFromConditionThreshold().valueOrNull, 2 )}" encoding="on"/> <isprint value="${dw.util.StringUtils.trim(Resource.msg('approachingpromo.more','checkout',null))}" encoding="on"/> <isprint value="${dw.util.StringUtils.trim(Resource.msg('approachingpromo.receive','checkout',null))}" encoding="on"/> <isprint value="${approachingdiscount.getDiscount().getPromotion().getCalloutMsg()}" encoding="on"/>"
+            }
+            </isloop>
+            ],
+        </isif>
+        
+        
+        <isif condition="${!empty(basket.customerName)}">
+        "customer_name" : "${basket.customerName}",
+        </isif>
+        <isif condition="${!empty(basket.customerEmail)}">
+        "customer_email" : "${basket.customerEmail}",
+        </isif>
+        "anonymous" : "${basket.customer.anonymous}",
+        "authenticated" : "${basket.customer.authenticated}"
+        }
+    </isif>
+<iselse>
+    <isprint value="${pdict.errorJson}" encoding="off"/>
+</isif>
+

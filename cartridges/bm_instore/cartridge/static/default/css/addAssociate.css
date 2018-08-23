@@ -1,0 +1,14 @@
+/**
+* ©2015-2018 salesforce.com, inc. All rights reserved.
+*/
+.selectedRow {
+    background-color: #D9EDF7 !important;
+}
+
+table.dataTable thead th, table.dataTable thead td {
+    padding-left: 10px !important;
+}
+
+p {
+    margin: 0;
+}

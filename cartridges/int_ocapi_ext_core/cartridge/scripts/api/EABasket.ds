@@ -1,0 +1,271 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Library for Basket related actions
+*/
+
+importPackage( dw.system );
+importPackage( dw.value );
+importPackage( dw.util );
+importPackage( dw.order );
+importPackage( dw.campaign );
+importPackage( dw.catalog );
+importPackage( dw.customer );
+
+function EABasket() {
+    this.isError = false;
+    this.eaStatusCode = EABasket.statusCodes.NOT_FOUND;
+}
+
+EABasket.statusCodes = {
+    "OK" : "EA_200",
+    "NOT_FOUND" : "EA_BASKET_400",
+    "SYSTEM_ERROR" : "EA_BASKET_500"
+}
+
+EABasket.prototype = { 
+    getCurrent : function( basket : dw.order.Basket ) {
+        if ( !basket ) {
+            return null;
+        }
+        
+        
+        try {
+            
+            var literal = new BasketLiteral( basket );
+            this.eaStatusCode = EABasket.statusCodes.OK;
+            return literal;
+            
+        } catch (ex) {
+            
+            this.eaStatusCode = EABasket.statusCodes.SYSTEM_ERROR;
+            Logger.error("Unable to retrieve EABasket! " + ex );
+            return null;
+            
+        }
+    }
+}
+
+
+// TODO: create own "model" class file
+function BasketLiteral( basket : dw.order.Basket) {
+    
+    function getProductOptionItems( poi : Collection ) {
+        var items = [];
+        // need sample code
+        return items;
+    }
+    
+    function getProductBundleItems( pbi : Collection ) {
+        var items = [];
+        // need sample code
+        return items;
+    }
+    
+    function getPriceAdjustments( adjustments : Collection ) {
+        var i = 0, 
+        len = adjustments.length, 
+        items = [],
+        pa;
+        
+        for ( ; i < len; i++ ) {
+            pa = adjustments[i];
+            items.push({
+                item_text : pa.lineItemText,
+                price : pa.price.value,
+                promotion_id : pa.promotion ? pa.promotion.ID : null
+            });
+        }
+                
+        return items;
+    }
+    
+    function getProductLineItems( pli : Collection ) {
+        var i = 0,
+            len = pli.length, 
+            items = [],
+            lineItem;
+        
+        for ( ; i < len; i++ ) {
+            var lineItem : ProductLineItem = pli[i];
+            items.push({
+                base_price: lineItem.grossPrice.value,
+                bundled_product_items: getProductBundleItems( lineItem.bundledProductLineItems ),
+                item_text: lineItem.lineItemText,
+                option_items: getProductOptionItems( lineItem.optionProductLineItems ),
+                price: lineItem.priceValue,
+                price_adjustments: getPriceAdjustments( lineItem.priceAdjustments ),
+                product_id: lineItem.productID,
+                product_name: lineItem.productName,
+                quantity: lineItem.quantityValue
+            });
+            
+        }
+        return items;
+    }
+    
+    function getBillingAddress( ba : OrderAddress ) {
+        var address = null;
+        if (!ba) {
+            return address;
+        }
+        address = {
+            phone : ba.phone,
+            address1 : ba.address1,
+            address2 : ba.address2,
+            city : ba.city,
+            postal_code : ba.postalCode,
+            last_name : ba.lastName,
+            country_code : ba.countryCode,
+            state_code : ba.stateCode,
+            company_name : ba.companyName,
+            suite : ba.suite,
+            title : ba.title,
+            second_name : ba.secondName,
+            first_name : ba.firstName,
+            job_title : ba.jobTitle,
+            last_modified : ba.lastModified,
+            suffix : ba.suffix,
+            post_box : ba.postBox,
+            creation_date : ba.creationDate,
+            full_name : ba.fullName
+        }    
+        return address;
+    }
+    
+    function getCouponItems( cli : Collection ) {
+        var items = [],
+            i = 0, 
+            len = cli.length;
+            
+        for ( ; i < len; i++ ) {
+            items.push({
+                "code" : cli[i].couponCode,
+                "status_code" : cli[i].statusCode,
+                "valid" : cli[i].valid
+            });
+        }
+        return items;
+    }
+    
+    function getShipments( bs : Collection ) {
+        var shipments = [];
+        var i = 0;
+        var len = bs.length;
+        
+        for ( ; i < len; i++ ) {
+            var s = bs[i];
+            var shipment = {};
+            // shipping address
+            if (s.shippingAddress) {
+                shipment.shippingAddress = {
+                    phone : s.shippingAddress.phone,
+                    address1 : s.shippingAddress.address1,
+                    address2 : s.shippingAddress.address2,
+                    city : s.shippingAddress.city,
+                    postal_code : s.shippingAddress.postalCode,
+                    last_name : s.shippingAddress.lastName,
+                    country_code : s.shippingAddress.countryCode.value,
+                    state_code : s.shippingAddress.stateCode,
+                    company_name : s.shippingAddress.companyName,
+                    suite : s.shippingAddress.suite,
+                    title : s.shippingAddress.title,
+                    second_name : s.shippingAddress.secondName,
+                    first_name : s.shippingAddress.firstName,
+                    job_title : s.shippingAddress.jobTitle,
+                    last_modified : s.shippingAddress.lastModified,
+                    suffix : s.shippingAddress.suffix,
+                    post_box : s.shippingAddress.postBox,
+                    creation_date : s.shippingAddress.creationDate,
+                    full_name : s.shippingAddress.fullName
+                }
+            }
+            var a = 0, 
+                lineItems = s.shippingLineItems, 
+                alen = lineItems.length, 
+                shippingItems = [],
+                shippingPromotions = [];
+            
+            for ( ; a < alen; a++ ) {
+                var sli = lineItems[i];
+                var shippingItem = {
+                    item_text : sli.lineItemText,
+                    price : sli.price.value
+                };
+                
+                var q = 0, spa = sli.shippingPriceAdjustments, qlen = spa.length, priceAdjustments = [];
+                
+                for ( ; q < qlen; q++ ) {
+                    var pa = spa[q];
+                    priceAdjustments.push({ 
+                        item_text : pa.lineItemText,
+                        price : pa.price.value,
+                        promotion_id : pa.promotion ? pa.promotion.ID : null,
+                      });
+                    shippingPromotions.push({
+                        callout_text : pa.promotion ? pa.promotion.calloutMsg.markup : null,
+                        promotion_id : pa.promotion ? pa.promotion.ID : null
+                    });
+                }
+                shippingItem.price_adjustments = priceAdjustments;
+                shippingItems.push( shippingItem );
+            }
+            
+            shipment.shipping_items = shippingItems;
+            if ( s.shippingMethod ) {
+                shipment.shippingMethod = {
+                    description : s.shippingMethod.description,
+                    id : s.shippingMethod.ID,
+                    name : s.shippingMethod.displayName,
+                    price : s.shippingTotalNetPrice.value,
+                    shipping_promotions : shippingPromotions
+                }
+            }
+            shipments.push(shipment);
+            
+        }
+    }
+    
+    function getPaymentMethod( basket : LineItemCtnr ) {
+        var pm = {};
+    
+        if ( basket.paymentInstruments.length ) {
+            
+            var paymentInstrument = basket.paymentInstruments[0];
+            var paymentMethod = dw.order.PaymentMgr.getPaymentMethod( paymentInstrument.paymentMethod );
+            
+            pm.id = paymentMethod.ID;
+            pm.name = paymentMethod.name;
+            
+            if ( paymentInstrument.paymentMethod.equals( PaymentInstrument.METHOD_CREDIT_CARD ) ) {
+                pm.card_type = paymentInstrument.creditCardType;
+                pm.id = PaymentInstrument.METHOD_CREDIT_CARD + "." + pm.card_type;
+            }
+        }    
+        return pm;
+    }
+    module.exports={
+        getShipments: getShipments
+    }
+    // object properties
+    
+    this.billing_address = getBillingAddress( basket.billingAddress );    
+    this.coupon_items = getCouponItems( basket.couponLineItems );
+    this.shipments = getShipments( basket.shipments );
+    this.currency = basket.currencyCode;
+    this.customer_info = {
+        email : basket.customerEmail
+    };
+
+    this.order_price_adjustments = getPriceAdjustments( basket.priceAdjustments );    
+    this.order_total = basket.totalGrossPrice.value;    
+    this.payment_method = getPaymentMethod( basket );;
+    this.product_sub_total = basket.adjustedMerchandizeTotalGrossPrice.value;
+    this.product_total = basket.adjustedMerchandizeTotalNetPrice.value;
+    this.product_items = getProductLineItems( basket.productLineItems );
+    this.shipments = getShipments( basket.shipments );
+    this.shipping_total = basket.adjustedShippingTotalNetPrice.value;
+    this.tax_total = basket.totalTax.value;
+}
+
+

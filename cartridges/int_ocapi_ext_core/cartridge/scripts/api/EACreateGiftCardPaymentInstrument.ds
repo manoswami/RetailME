@@ -1,0 +1,154 @@
+/**
+ * ©2013-2018 salesforce.com, inc. All rights reserved.
+ *
+ * Creates a gift card payment instrument from the given gift certificate ID
+ * for the given basket. The script attempts to redeem the current balance of
+ * the gift certificate. If the current balance exceeds the order total, this amount
+ * is redeemed and the balance is lowered.
+ *
+ *  @input Order : dw.order.Order The basket.
+ *  @input GiftCertificateID : String The Gift Certificate ID.
+ *  @input RedeemAmount : Object Amount to Redeem.
+ *  @output Status : dw.system.Status The status of the gift certificate redemption.
+ *  @output PaymentInstrument : dw.order.PaymentInstrument The created Payment instrument.
+ */
+
+var Status = require('dw/system/Status');
+var Site = require('dw/system/Site');
+importPackage( dw.order );
+importPackage( dw.value );
+importPackage( dw.util );
+
+function execute( pdict : PipelineDictionary ) : Number {
+    var result = createGiftCardPayment(pdict.Order, pdict.GiftCertificateID, pdict.RedeemAmount);
+    if (result.PaymentInstrument) {
+        pdict.PaymentInstrument = result.PaymentInstrument;
+        pdict.Status = new Status(Status.OK);
+        return PIPELET_NEXT;
+    }
+    else {
+        pdict.Status = result.Status;
+        return PIPELET_ERROR;
+    }
+}
+/**
+ * createGiftCardPayment - create payment instrument for gift card
+ * @param : order
+ * @param : giftCertID
+ * @param : redeemAmount
+ */ 
+function createGiftCardPayment(order, giftCertID, redeemAmount) {
+    // fetch the gift certificate
+    var gc : GiftCertificate = GiftCertificateMgr.getGiftCertificateByCode(giftCertID);
+    if (gc == null) {
+        var Status = new Status(Status.ERROR, GiftCertificateStatusCodes.GIFTCERTIFICATE_NOT_FOUND );
+        return {Status : Status};
+    }
+
+    // make sure it is enabled
+    if (!gc.isEnabled()) {
+        var Status = new Status(Status.ERROR, GiftCertificateStatusCodes.GIFTCERTIFICATE_DISABLED);
+        return {Status : Status};
+    }
+
+    // make sure it is available for use
+    if (gc.getStatus() == GiftCertificate.STATUS_PENDING) {
+        var Status = new Status(Status.ERROR, GiftCertificateStatusCodes.GIFTCERTIFICATE_PENDING);
+        return {Status : Status};
+    }
+
+    // make sure it has not been fully redeemed
+    if (gc.getStatus() == GiftCertificate.STATUS_REDEEMED) {
+        var Status = new Status(Status.ERROR, GiftCertificateStatusCodes.GIFTCERTIFICATE_INSUFFICIENT_BALANCE);
+        return {Status : Status};
+    }
+
+    // remove any duplicates
+    removeDuplicates(order, giftCertID);
+
+    // fetch the balance and the order total
+    var balance : Money = gc.getBalance();
+    var orderTotal : Money = order.getTotalGrossPrice();
+
+    if (!empty(redeemAmount)) {
+        var amountToRedeem : Money = new Money(redeemAmount, session.getCurrency().getCurrencyCode());
+    
+    } else {
+        
+        // assume to redeem the remaining balance
+        var amountToRedeem : Money = balance;
+    
+        // because there may be multiple gift certificates, we adjust the amount being applied to the current 
+        // gift certificate based on the order total minus the aggregate amount of the current gift certificates.
+        var amountToRedeem = calculateAmount(amountToRedeem, orderTotal, order);
+    }
+
+
+    // create a payment instrument from this gift certificate
+    var paymentInstr : PaymentInstrument = order.createGiftCertificatePaymentInstrument(giftCertID, amountToRedeem);
+    
+    var paymentMethod = PaymentMgr.getPaymentMethod("GIFT_CERTIFICATE");
+    if (paymentMethod != null && paymentMethod.custom.eaRequireSignature) {
+        paymentInstr.custom.eaRequireSignature = true;
+    }
+    return {PaymentInstrument : paymentInstr};
+}
+
+
+/**
+ * Calculates the amount to redeem for this gift certificate by subtracting 
+ * the amount of all of other gift certificates from the order total.
+ */
+function calculateAmount(amountToRedeem : Money, orderTotal : Money, order : Order) {
+    // the total redemption amount of all gift certificates for the basket
+    var giftCertTotal : Money = new Money(0.0, session.getCurrency().getCurrencyCode());
+
+    // iterate over the list of gift certificate payment instruments 
+    // and update the total redemption amount
+    var gcPaymentInstrs : Collection = order.getGiftCertificatePaymentInstruments();
+    var iter : Iterator = gcPaymentInstrs.iterator();
+    var orderPI : OrderPaymentInstrument = null;
+
+    while (iter.hasNext()) {
+        orderPI = iter.next();
+        giftCertTotal = giftCertTotal.add( orderPI.getPaymentTransaction().getAmount() );
+    }
+
+    // calculate the remaining order balance
+    // this is the remaining open order total which has to be paid
+    var orderBalance : Money = orderTotal.subtract( giftCertTotal );
+
+    // the redemption amount exceeds the order balance
+    // return the order balance as maximum redemption amount
+    if (orderBalance < amountToRedeem) {
+        // return the remaining order balance
+        return orderBalance;
+    }
+
+    // just return the redemption amount in case it is lower
+    // or equals the order balance
+    return amountToRedeem;
+}
+
+/** 
+ * Determines if the basket already contains a gift certificate payment 
+ * instrument with the given gift certificate ID and removes these existing 
+ * payment instrument from the basket.
+ */
+function removeDuplicates(order : Order, giftCertID : Object) {
+    // iterate over the list of payment instruments to check 
+    // if the gift certificate is already being used as payment instrument
+    var gcPaymentInstrs : Collection = order.getGiftCertificatePaymentInstruments(giftCertID);
+    var iter : Iterator = gcPaymentInstrs.iterator();
+    var existingPI : OrderPaymentInstrument = null;
+    
+    // remove found gift certificates, since we don't want duplicates
+    while (iter.hasNext()) {
+        existingPI = iter.next();
+        order.removePaymentInstrument( existingPI );
+    }
+}
+
+module.exports = {
+    createGiftCardPayment : createGiftCardPayment
+};

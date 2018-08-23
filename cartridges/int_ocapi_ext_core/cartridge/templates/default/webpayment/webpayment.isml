@@ -1,0 +1,136 @@
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<html>
+    <head>
+        <link rel="stylesheet" href="${URLUtils.staticURL('/css/webPayment.css?version=1.168')}" />
+        <script src="${URLUtils.staticURL('/lib/jquery/jquery-1.7.1.min.js')}"></script>
+        <script src="${URLUtils.staticURL('/js/moment-with-locales.min.js')}"></script>
+        <script>
+            $(function() {
+                function fixHeightOnIOS7() {
+                    var fixedHeight = Math.min(
+                        $(window).height(), // This is smaller on Desktop
+                        window.innerHeight || Infinity // This is smaller on iOS7
+                    );
+                    $('body').height(fixedHeight);
+                }
+    
+                $(window).on('resize orientationchange', fixHeightOnIOS7);
+                fixHeightOnIOS7();
+            });
+            setTimeout(function(){
+                window.location.href="${pdict.AppURL}://anything?token=${pdict.OrderToken}&action=cancel";
+            }, ${pdict.AppTimeout});
+            function showBusyIndicator(){
+                $(".load-overlay").show();
+                return true;
+            }
+            function checkForTimeOut(){
+                window.location.href="${pdict.AppURL}://anything?token=${pdict.OrderToken}&action=timeout";
+            }
+        </script>
+    </head>
+    <body>
+        <div class="load-overlay" style="display:none;">
+            <img class="load-image" src="${URLUtils.staticURL('/images/loading.gif')}"></img>
+        </div>
+
+        <isinclude template="util/modules" />
+        
+        <form action="${URLUtils.httpsContinue()}" method="post"
+            id="${pdict.CurrentForms.billing.htmlName}" onsubmit="showBusyIndicator();">
+            <isset name="timeout" value="10000" scope="page"/>
+            <input type="hidden" name="${pdict.CurrentForms.billing.secureKeyHtmlName}" value="${pdict.CurrentForms.billing.secureKeyValue}"/>
+            <div class="topheader">
+                <div class="continueButton">
+                    <button id="${pdict.CurrentForms.WebPayment.confirm.htmlName}"
+                            name="${pdict.CurrentForms.WebPayment.confirm.htmlName}"
+                            value="confirm" class="confirm-button" onClick="setTimeout(checkForTimeOut, ${timeout})" type=submit>
+                        ${Resource.msg('global.continue', 'locale', null)}
+                    </button>
+                </div>
+                <div class="cancelButton">
+                    <button id="${pdict.CurrentForms.WebPayment.cancel.htmlName}"
+                            name="${pdict.CurrentForms.WebPayment.cancel.htmlName}"
+                            value="cancel" class="cancel-button" onClick="setTimeout(checkForTimeOut, ${timeout})">
+                        ${Resource.msg('global.cancel', 'locale', null)}
+                    </button>
+                </div>
+                <div id="paymentEntryLabel">
+                    <h2 class="paymentEntry">${Resource.msg('webpayment.paymentEntry','forms',null)}</h2>
+                </div>
+            </div>
+            <div class="content-area">
+                <div class="leftDiv">
+                    <div class="paymentContent">
+                        <isinputfield formfield="${pdict.CurrentForms.billing.paymentMethods.creditCard.type}" type="select"/>
+                        <span class="form-label-text">${Resource.msg('billing.creditcardlistexpdate','checkout',null)}</span>
+                        <isif condition="${!empty(pdict.CurrentForms.billing.paymentMethods.creditCard.expiration)}">    
+                            <isinputfield formfield="${pdict.CurrentForms.billing.paymentMethods.creditCard.expiration.month}" type="select" rowclass="month label-removed"/>
+                            <isinputfield formfield="${pdict.CurrentForms.billing.paymentMethods.creditCard.expiration.year}" type="select" rowclass="year label-removed"/>
+                        <iselse>
+                            <isinputfield formfield="${pdict.CurrentForms.billing.paymentMethods.creditCard.month}" type="select" rowclass="month label-removed"/>
+                            <isinputfield formfield="${pdict.CurrentForms.billing.paymentMethods.creditCard.year}" type="select" rowclass="year label-removed"/>
+                        </isif>
+                        <isinputfield formfield="${pdict.CurrentForms.billing.paymentMethods.creditCard.owner}" type="input"/>
+                        <isinputfield formfield="${pdict.CurrentForms.billing.paymentMethods.creditCard.number}" type="number"/>
+                        <isinputfield formfield="${pdict.CurrentForms.billing.paymentMethods.creditCard.cvn}" type="number" rowclass="cvn"/>
+                    </div>
+                </div>
+                <div class="rightDiv">
+                    <table border="0">
+                        <tbody>
+                            <tr>
+                                <isif condition="${!empty(pdict.CurrentForms.WebPayment.orderNumber.htmlValue)}">
+                                    <td class="tableLeft">
+                                        ${Resource.msg('webpayment.orderNumber','forms',null)}
+                                    </td>
+                                    <td class="tableRight appleLinks">
+                                        ${pdict.CurrentForms.WebPayment.orderNumber.htmlValue}
+                                    </td>
+                                </isif>
+                            </tr>
+                            <tr>
+                                <isif condition="${!empty(pdict.CurrentForms.WebPayment.orderDate.htmlValue)}">
+                                    <td class="tableLeft">
+                                        ${Resource.msg('webpayment.orderDate','forms',null)}
+                                    </td>
+                                    <td id="orderDateClass" class="tableRight">
+                                        <script>
+                                            var currentLocale = '<isprint value="${request.getLocale()}" encoding="off" />' ;
+                                            moment.locale(currentLocale);
+                                            var orderDate = '<isprint value="${pdict.CurrentForms.WebPayment.orderDate.htmlValue}" encoding="off" />';
+                                            var orderDate1 = moment(orderDate, 'MM.DD,YYYY').format('LL');
+                                            <isset name="orderDate" value=orderDate1 scope="page"/>
+                                            $("#orderDateClass").html(orderDate1);
+                                        </script>
+                                    </td>
+                                </isif>
+                            </tr>
+                            <tr class="spaceUnder">
+                                <isif condition="${!empty(pdict.CurrentForms.WebPayment.orderTotal.htmlValue)}">
+                                    <td class="tableLeft">
+                                        ${Resource.msg('webpayment.ordertotal','forms',null)}
+                                    </td>
+                                    <td class="tableRight">
+                                        ${pdict.orderTotal}
+                                    </td>
+                                </isif>
+                            </tr>
+                            <tr>
+                                <isif condition="${!empty(pdict.CurrentForms.WebPayment.balanceDue.htmlValue)}">
+                                    <td class="tableLeft">
+                                        ${Resource.msg('webpayment.balanceDue','forms',null)}
+                                    </td>
+                                    <td class="tableRight">
+                                         ${pdict.balanceDue}
+                                    </td>
+                                </isif>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </form>
+    </body>
+</html>

@@ -1,0 +1,53 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+*     Get an order number from a unique token
+*
+*  @input token : String
+*  @output orderNo: String 
+*
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.util );
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = getOrderFromToken(args.token);
+    if (result.orderNo) {
+        args.orderNo = result.orderNo;
+        return PIPELET_NEXT;
+    } else {
+        args.ErrorMessage = result.ErrorMessage;
+        return PIPELET_ERROR;
+    }
+}
+
+/**
+ * getOrderFromToken - returns the orderNo from the order token
+ * @param token
+ */
+function getOrderFromToken(token) {
+    
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("getOrderFromToken: entering script");
+    var result ={};
+    try{
+        var obj : dw.object.CustomObject  = CustomObjectMgr.getCustomObject("webOrder", token); 
+        if (empty(obj)) {
+            return result;
+        }
+        var orderNo = obj.custom.orderNo;
+        // now delete the token custom object
+        CustomObjectMgr.remove(obj);
+        log.info("getOrderFromToken: exiting script");
+        result = {orderNo : orderNo};
+    } catch(ex) {
+        var ErrorMessage = ex.stringify();
+        result = {ErrorMessage : ErrorMessage};
+    }
+    return result;
+}
+
+module.exports = {
+    getOrderFromToken : getOrderFromToken
+};

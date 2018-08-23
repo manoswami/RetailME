@@ -1,0 +1,65 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+*     Wrapper to check user authentication
+*
+*  @input EmployeeId : String 
+*  @input Passcode : String 
+*  @output authorized: Boolean
+*  @output status : String
+*  @output output : String
+*
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importScript("api/Authorize.ds");
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = getPermissions(args.EmployeeId, args.Passcode);
+    if (result.authorized == false) {
+        args.output = result.output;
+        args.status = result.status;
+        args.authorized = result.authorized;
+        return PIPELET_ERROR;
+    } else {
+        args.output = result.output;
+        args.authorized = result.authorized;
+        return PIPELET_NEXT;
+    }
+}
+
+/**
+ * getPermissions - check if the user is authorized to log in the application
+ * @param employeeId
+ * @param passcode
+ */
+function getPermissions(employeeId, passcode) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("getPermissions: entering script");
+
+    if (empty(employeeId) || empty(passcode)) {
+        log.info("getPermissions: exiting script with missing parameters");
+        return PIPELET_ERROR;
+    }
+    log.info("getPermissions: getting permissions for associate: " + employeeId);
+
+    //Verify Associate's credentials and authorization
+    var authorize = new Authorize();
+    authorize.authorize(employeeId, passcode, session.custom.storeId); //empid, passcode, store id
+    
+    if (authorize.httpStatus != 200) {
+        log.info("getPermissions: exiting script with authorization error");
+        return {output : authorize.stringify(), status : authorize.status, authorized : false};
+    }
+    
+    //JSON output
+    var output = authorize.stringify();
+    var authorized = authorize.isAuthorized() ? true : false;
+
+    log.info("getPermissions: exiting script without error");
+    return {output : output, authorized : authorized};
+}
+
+module.exports = {
+    getPermissions : getPermissions
+};

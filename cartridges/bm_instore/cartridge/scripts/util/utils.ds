@@ -1,0 +1,24 @@
+/**
+* ©2015-2018 salesforce.com, inc. All rights reserved.
+*
+* utils.ds - Contain function that needs to be exported throughout the app 
+*
+*/
+
+importPackage( dw.crypto );
+
+function encrypt(password : String, salt : String) {
+    // encrypt / salt password
+    var cipher : MessageDigest = MessageDigest(MessageDigest.DIGEST_SHA_512);
+    var encrypted = cipher.digest(""+ password + "" + salt);
+    return encrypted; 
+}
+
+function randomString(length) {
+    var chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    var result = '';
+    for (var i = length; i > 0; --i) {
+        result += chars[Math.round(Math.random() * (chars.length - 1))];
+    }
+    return result;
+}

@@ -1,0 +1,84 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Action/Wrapper Script for Customer Actions
+*
+*
+*  @input EmailId : String Email Id of Customer.
+*  @input FirstName : String First Name of the Customer.
+*  @input LastName : String Last Name of the Customer.
+*  @output ErrorJson : String JSON string of the Customer object
+*  @output CustomerList : dw.util.List results from customer search
+*
+*/
+importPackage( dw.system );
+importPackage(dw.util);
+
+importScript("api/EACustomer.ds");
+importScript("api/EAStatus.ds");
+importScript("util/JsonSerializer.ds");
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = searchCustomer(args.FirstName, args.LastName, args.EmailId);
+    if (result.CustomerList) {
+        args.CustomerList = result.CustomerList;
+        return PIPELET_NEXT;
+    } else {
+        args.ErrorJson = result.ErrorJson;
+        return PIPELET_ERROR;
+    }
+}
+
+/**
+ * searchCustomer - search for a customer
+ * @param firstName
+ * @param lastName
+ * @param emailId
+ */
+function searchCustomer(firstName, lastName, emailId) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("searchCustomer: entering script");
+
+    var eaStatus = new EAStatus();
+    var errorJson;
+    var customerList;
+
+    //check authorization
+    if (!session.custom.agent || !('allowLOBO' in session.custom.agent) || !session.custom.agent.allowLOBO ) {
+        eaStatus.findMessage("EA_CUSTOMER_401");
+        errorJson = eaStatus.stringify();
+        log.info("searchCustomer: error EA_CUSTOMER_401");
+        
+    } else {
+        log.info("searchCustomer: associate " + session.custom.agent + " is searching for a customer" + 
+            emailId + ", " +
+            firstName + ", " +
+            lastName);
+    
+        //search customer
+        var customer = new EACustomer();
+        var firstname= firstName.replace("'", "?");        // replace single quotes with ? to aid search string generation
+        var lastname= lastName.replace("'", "?");        // replace single quotes with ? to aid search string generation
+        var customerItr : SeekableIterator = customer.searchCustomer(emailId, firstname, lastname);
+        var outputStr : String = null;
+        
+        var hitMax = 250;
+        if ('eaCustomerSearchLimit' in dw.system.Site.current.preferences.custom && !empty(dw.system.Site.current.preferences.custom.eaCustomerSearchLimit)) {
+            hitMax = dw.system.Site.current.preferences.custom.eaCustomerSearchLimit;
+        }
+        
+        if (!customer.isError && customerItr.count < hitMax) {
+            var customerList : List = customerItr.asList();
+        
+        } else {
+            (customerItr.count >= hitMax) ? eaStatus.findMessage("EA_CUSTOMER_4001") : eaStatus.findMessage(customer.eaStatusCode);
+            errorJson = eaStatus.stringify();
+        }    
+    }
+    log.info("searchCustomer: exiting script");
+    return {CustomerList : customerList, ErrorJson : errorJson};
+}
+
+module.exports = {
+    searchCustomer : searchCustomer
+};

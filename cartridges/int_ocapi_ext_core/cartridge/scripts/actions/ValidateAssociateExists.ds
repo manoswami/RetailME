@@ -1,0 +1,55 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Validates that a store associate exists and is assigned to the store making the request
+*
+*   @input employee_id : String 
+*   @input store_id : String 
+*   @output JSONResponse : Object
+*
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importScript("api/EAStatus.ds");
+importScript("int_ocapi_ext_core:api/services/StoreAssociatesCO.ds");
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = validateAssociateExists(args.employee_id, args.store_id);
+    if (result.ErrorMessage) {
+        args.JSONResponse = result.ErrorMessage;
+        return PIPELET_ERROR;
+    } else {
+        args.JSONResponse = result.JSONResponse;
+        return PIPELET_NEXT;
+    }
+}
+/**
+ * validateAssociateExists - checks if an associate exists for that store
+ * @param : employee_id
+ * @param : store_id
+ */
+function validateAssociateExists(employee_id,store_id) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("ValidateAssociateExists: entering script");
+
+    var eaStatus = new EAStatus();
+    var employee : CustomObject = CustomObjectMgr.getCustomObject("associates", employee_id);
+    if (!employee) {
+        eaStatus.findMessage("EA_EMP_AUTH_4009");
+        return {ErrorMessage : eaStatus};
+    }
+
+    var storeObj : CustomObject = CustomObjectMgr.getCustomObject("storeAssociates", store_id);
+    var storeEmployees = storeObj.custom.associateIDs;
+    if (storeEmployees.indexOf(employee_id) < 0) {
+        eaStatus.findMessage("EA_EMP_AUTH_4010");
+        return {ErrorMessage : eaStatus};
+    }
+
+    log.info("ValidateAssociateExists: exiting script without errors");
+    return {JSONResponse : {'httpStatus' : 200, 'result' : true}};
+}
+
+module.exports = {
+    validateAssociateExists : validateAssociateExists
+};

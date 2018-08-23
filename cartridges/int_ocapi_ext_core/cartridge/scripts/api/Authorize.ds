@@ -1,0 +1,165 @@
+/**
+* * ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Authorize client to allow agent on behalf of login based on custom object
+* SSL cleartext passwrd
+* @author jmoody
+**/
+
+importPackage( dw.system );
+importPackage( dw.crypto );
+importPackage( dw.object );
+importPackage( dw.util );
+importScript("int_ocapi_ext_core:api/services/PermissionGroupCO.ds");
+importScript("int_ocapi_ext_core:api/services/StoreAssociatesCO.ds");
+
+
+var STATUS_TYPES = {
+    AUTHORIZE: "authorize", 
+    NOT_AUTHORIZED: "not_authorized", 
+    FORBIDDEN: "forbidden",
+    PERMISSIONS_NOT_FOUND: "permissions_not_found",
+    LOCKED: "locked",
+    BAD_PARAMS: "bad_params"
+};
+
+Authorize.prototype.STATUS_TYPE = STATUS_TYPES;
+
+function findEmployee(storeId : String, empId: String) {
+    var storeAssociates = new StoreAssociates();
+    storeAssociates.retrieve(storeId, empId);
+    return storeAssociates; 
+}
+
+function encrypt(password : String, salt : String) {
+    // encrypt / salt password
+    var cipher : MessageDigest = MessageDigest(MessageDigest.DIGEST_SHA_256);
+    var encrypted = cipher.digest(""+ password + "" + salt);
+    return encrypted; 
+}
+
+function encryptWithSHA512(password : String, salt : String) {
+    // encrypt / salt password
+    var cipher : MessageDigest = MessageDigest(MessageDigest.DIGEST_SHA_512);
+    var encrypted = cipher.digest(""+ password + "" + salt);
+    return encrypted; 
+}
+
+function match(encryptedPassword : String, hash : String) {
+    return encryptedPassword == hash;
+}
+
+function Authorize() {
+    this.httpStatus = 401;
+    this.status = STATUS_TYPES.NOT_AUTHORIZED;
+    this.permissions = {};
+    this.allowLOBO = false;
+    this.associateInfo = {};
+}
+
+Authorize.prototype.stringify =  function() {
+    return JSON.stringify(this);
+};
+
+Authorize.prototype.isAuthorized = function() {
+    if (this.status == STATUS_TYPES.AUTHORIZE) {
+        return true;
+    }
+    return false;
+};
+
+Authorize.prototype.getPermissions = function() {
+    return this.permissions;
+};
+
+Authorize.prototype.authorize = function (empId : String, pin : String, storeId : String) {
+    
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("Authorize.authorize: entering script");
+    
+    // Retrive user account and get salt
+    var storeAssociates = findEmployee(storeId, empId);
+    if (storeAssociates.notFound) {
+        this.httpStatus = 404;
+        return;
+    }
+
+    // if the user is locked out, don't proceed any further
+    if (storeAssociates.employee.custom.isLocked) {
+        this.httpStatus = 403;
+        this.status = STATUS_TYPES.LOCKED;
+        return;
+    }
+    
+    var salt = storeAssociates.employee.custom.salt;
+    //encrypting the password with SHA256
+    var encryptedPassword = encrypt(pin, salt );
+    var employeeStoredHash = storeAssociates.employee.custom.hashedCode;
+    var length = employeeStoredHash.length;
+    var newEncryptedPassword;
+    // checking if the password has been encrypted with SHA256.
+    // if yes, then encrypt the password again with SHA512 and update it in the custom object
+    if(length == 64 && match(encryptedPassword, employeeStoredHash)){
+        var randomBytes:Bytes =  new SecureRandom().nextBytes(64);
+        var salt = MessageDigest(MessageDigest.DIGEST_SHA_512).digest(randomBytes);
+        newEncryptedPassword = encryptWithSHA512(pin,salt);
+        storeAssociates.employee.custom.hashedCode = newEncryptedPassword;
+        storeAssociates.employee.custom.loginAttempts = 0;
+        storeAssociates.employee.custom.isLocked = false;
+        storeAssociates.employee.custom.salt = salt;
+    }
+    else{
+        newEncryptedPassword = encryptWithSHA512(pin,salt);
+    }
+    employeeStoredHash = storeAssociates.employee.custom.hashedCode;
+    
+    this.associateInfo.firstName = storeAssociates.employee.custom.firstName;
+    this.associateInfo.lastName = storeAssociates.employee.custom.lastName;
+    this.associateInfo.permissionGroupId = storeAssociates.employee.custom.permissionGroupId;
+    
+    if (! match(newEncryptedPassword, employeeStoredHash)) {
+        this.httpStatus = 403;
+        // increment the number of failed login attempts
+        storeAssociates.employee.custom.loginAttempts++;
+        // now see if the user has gotten locked out
+        if (storeAssociates.employee.custom.loginAttempts >= dw.system.Site.current.preferences.custom.eaFailedLoginAttempts) {
+            //log.info("Authorize: associate has exceeded number of invalid login attempts. Locking account.");
+            this.status = STATUS_TYPES.LOCKED;
+            storeAssociates.employee.custom.isLocked = true;
+        }
+        return;
+    }
+    
+    // associate uses correct login credentials, so reset the login attempts
+    storeAssociates.employee.custom.loginAttempts = 0;
+    
+    this.permissions = PermissionGroup.retrieve(storeAssociates.employee.custom.permissionGroupId)[storeAssociates.employee.custom.permissionGroupId];
+    if (empty(this.permissions)) {
+        this.httpStatus = 401;
+        this.status = STATUS_TYPES.PERMISSIONS_NOT_FOUND;
+    } else {
+        if (!empty(this.permissions.allowLOBO)) {
+            this.allowLOBO = this.permissions.allowLOBO;
+        }
+        
+        this.status = STATUS_TYPES.AUTHORIZE;
+        this.httpStatus = 200;
+    }
+};
+
+Authorize.prototype.authorizeAndSetDataOnSession = function(empId : String, pin : String, storeId : String) {
+    if (empty(empId) || empty(pin) || empty(storeId)) {
+        this.status = STATUS_TYPES.BAD_PARAMS;
+        return;
+    }
+    this.authorize(empId, pin, storeId);
+    if (this.httpStatus == 200) {
+        //Set Associate's data in session
+        session.custom.agent = {
+            employeeId : empId,
+            storeId : storeId,
+            allowLOBO : this.allowLOBO,
+            permissionGroupId : this.associateInfo.permissionGroupId
+        };
+    }
+};

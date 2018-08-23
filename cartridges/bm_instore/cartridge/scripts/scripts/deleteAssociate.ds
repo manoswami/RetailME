@@ -1,0 +1,66 @@
+/**
+* ©2015-2018 salesforce.com, inc. All rights reserved.
+*
+* deleteAssociate.ds - deletes an associate from a store's custom object
+*
+*   @input StoreId : String
+*   @input AssociateId : String
+*
+*   @output ErrorStatus : String
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+
+function execute( args : PipelineDictionary ) : Number
+{
+    var storeId : String = args.StoreId;
+    var associateId : String = args.AssociateId;
+    
+    if (empty(storeId)) {
+        Logger.error("DeleteAssociate: missing storeId");
+        args.ErrorStatus = "DeleteAssociate: missing store id";
+        return PIPELET_ERROR;
+    }
+    
+    if (empty(associateId) || associateId == null) {
+        Logger.error("DeleteAssociate: missing associateId");
+        args.ErrorStatus = "DeleteAssociate: missing associate id";
+        return PIPELET_ERROR;
+    }
+    
+    try {
+        var storeObj : CustomObject = CustomObjectMgr.getCustomObject("storeAssociates", storeId);
+        var storeEmployees : String = storeObj.custom.associateIDs;
+    } catch (e) {
+        Logger.error("Cannot get associates for " + storeId + " (" + e + ")");
+        args.ErrorStatus = "Cannot get associates for " + storeId + " (" + e + ")";
+        return PIPELET_ERROR;    
+    }
+    
+    // verify that the associate is both in the store's list AND has an entry in the associates list
+    // check to see if associate is in the DB
+    var found = false;
+    if (storeEmployees.indexOf(associateId) >= 0) {
+        var employeeCO : CustomObject = CustomObjectMgr.getCustomObject("associates", associateId);
+        found = !empty(employeeCO);
+    }
+    
+    if (!found) {
+        Logger.error("Associate " + associateId + " is not in this store's database");
+        args.ErrorStatus = "DeleteAssociate: associate " + associateId + " not found in store " + storeId;
+        return PIPELET_ERROR;
+    }
+    
+    // associate exists, remove him from the store
+    
+    try {
+        var tempEmployees = storeEmployees.replace(associateId, "");
+        tempEmployees = tempEmployees.replace(/,,/g, ',');
+        storeObj.custom.associateIDs = tempEmployees;
+    } catch (e) {
+        Logger.error("Cannot update custom object for store " + storeId + " (" + e + ")");
+        args.ErrorStatus = "Cannot update custom object for store " + storeId + " (" + e + ")";
+        return PIPELET_ERROR;
+    }
+    return PIPELET_NEXT;
+}

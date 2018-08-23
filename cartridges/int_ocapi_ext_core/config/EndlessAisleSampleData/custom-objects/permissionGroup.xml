@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<custom-objects xmlns="http://www.demandware.com/xml/impex/customobject/2006-10-31">
+
+    <custom-object type-id="permissionGroup" object-id="associate">
+        <object-attribute attribute-id="accessSalesReports">true</object-attribute>
+        <object-attribute attribute-id="accessStoreLevelSalesReports">false</object-attribute>
+        <object-attribute attribute-id="allowItemPriceOverrideByAmount">false</object-attribute>
+        <object-attribute attribute-id="allowItemPriceOverrideByPercent">false</object-attribute>
+        <object-attribute attribute-id="allowItemPriceOverrideFixedPrice">false</object-attribute>
+        <object-attribute attribute-id="allowLOBO">true</object-attribute>
+        <object-attribute attribute-id="allowManagerOverrides">false</object-attribute>
+        <object-attribute attribute-id="allowShippingOverrideByAmount">false</object-attribute>
+        <object-attribute attribute-id="allowShippingOverrideByPercent">true</object-attribute>
+        <object-attribute attribute-id="allowShippingOverrideFixed">false</object-attribute>
+        <object-attribute attribute-id="permissionGroupName">Associate - 25% max off Shipping and no product overrides</object-attribute>
+        <object-attribute attribute-id="shippingPriceOverrideMaxPercent">.25</object-attribute>
+    </custom-object>
+
+    <custom-object type-id="permissionGroup" object-id="kiosk">
+        <object-attribute attribute-id="accessSalesReports">false</object-attribute>
+        <object-attribute attribute-id="accessStoreLevelSalesReports">false</object-attribute>
+        <object-attribute attribute-id="allowAdmin">false</object-attribute>
+        <object-attribute attribute-id="allowItemPriceOverrideByAmount">false</object-attribute>
+        <object-attribute attribute-id="allowItemPriceOverrideByPercent">false</object-attribute>
+        <object-attribute attribute-id="allowItemPriceOverrideFixedPrice">false</object-attribute>
+        <object-attribute attribute-id="allowLOBO">false</object-attribute>
+        <object-attribute attribute-id="allowManagerOverrides">false</object-attribute>
+        <object-attribute attribute-id="allowShippingOverrideByAmount">false</object-attribute>
+        <object-attribute attribute-id="allowShippingOverrideByPercent">false</object-attribute>
+        <object-attribute attribute-id="allowShippingOverrideFixed">false</object-attribute>
+        <object-attribute attribute-id="permissionGroupName">Kiosk - Limited kiosk only access</object-attribute>
+    </custom-object>
+
+    <custom-object type-id="permissionGroup" object-id="manager">
+        <object-attribute attribute-id="accessSalesReports">true</object-attribute>
+        <object-attribute attribute-id="accessStoreLevelSalesReports">true</object-attribute>
+        <object-attribute attribute-id="allowAdmin">true</object-attribute>
+        <object-attribute attribute-id="allowItemPriceOverrideByAmount">true</object-attribute>
+        <object-attribute attribute-id="allowItemPriceOverrideByPercent">true</object-attribute>
+        <object-attribute attribute-id="allowItemPriceOverrideFixedPrice">true</object-attribute>
+        <object-attribute attribute-id="allowLOBO">true</object-attribute>
+        <object-attribute attribute-id="allowManagerOverrides">true</object-attribute>
+        <object-attribute attribute-id="allowShippingOverrideByAmount">true</object-attribute>
+        <object-attribute attribute-id="allowShippingOverrideByPercent">true</object-attribute>
+        <object-attribute attribute-id="allowShippingOverrideFixed">true</object-attribute>
+        <object-attribute attribute-id="permissionGroupName">Manager - 100% off Products and Shipping</object-attribute>
+    </custom-object>
+
+</custom-objects>

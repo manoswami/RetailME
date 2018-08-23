@@ -1,0 +1,101 @@
+/**
+* ©2016-2018 salesforce.com, inc. All rights reserved.
+*
+* ajaxEditAssociates - - edit an associate's permission (represented as a JSON string) to a store's custom object with ajax call
+*
+*   @input StoreId : String
+*   @input AssociateId : String
+*   @input FirstName: String
+*   @input LastName : String
+*   @input Permissions : String
+*   @input Password : String
+*   @input Confirmed : String
+*
+*   @output ErrorStatus : String 
+*   @output EditAssociateJSONResponse : String
+* 
+*
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.crypto );
+importPackage( dw.web );
+importScript("util/utils.ds");
+
+function execute( args : PipelineDictionary ) : Number
+{
+    var storeId : String = args.StoreId;
+    var associateId : String = args.AssociateId;
+    var firstname : String = args.FirstName;
+    var lastname : String = args.LastName;
+    var permissions : String = args.Permissions;
+    var password : String = args.Password;
+    var loginAttempts : Number = 0;
+    var isLocked : Boolean = false;
+    var userConfirmed = args.Confirmed;
+
+    var EditAssociateJSONResponse = {};
+    
+    if (empty(associateId)) {
+        Logger.error("ajaxEditAssociates: missing required input AssociateID");
+        args.ErrorStatus = Resource.msg('ajaxEditAssoc.missingReqInput', 'strings', null);
+        return PIPELET_ERROR;
+    }
+    try{
+        // check to see if associate already exists in big employee list
+        var employeeCO : dw.object.CustomObject = CustomObjectMgr.getCustomObject("associates", associateId);
+        
+        EditAssociateJSONResponse.assignedStores = {assigned:false,
+                                            message:'',
+                                            previousPermissionId:(empty(employeeCO)?'':employeeCO.custom.permissionGroupId) };
+                                        
+        
+        
+        var allStoreAssociates : dw.object.CustomObject = CustomObjectMgr.getAllCustomObjects("storeAssociates");
+        var jsonExistingstores :Array = [];
+        
+        if(empty(userConfirmed) &&  userConfirmed != "YES"){
+            for each( var store in allStoreAssociates){
+                var storeEmployees = store.custom.associateIDs;
+                if(storeEmployees){
+                    storeEmployees = storeEmployees.split(",");
+                    if(storeEmployees.indexOf(associateId)>=0){
+                        EditAssociateJSONResponse.assignedStores.assigned=true;
+                        jsonExistingstores.push(store.custom.storeId);
+                    }
+                }
+            }
+            EditAssociateJSONResponse.assignedStores.stores=jsonExistingstores;
+            if(EditAssociateJSONResponse.assignedStores.assigned){
+                EditAssociateJSONResponse.assignedStores.message = Resource.msgf('ajaxEditAssoc.JSONRespConf', 'strings', null,associateId,jsonExistingstores.join(","));
+                                                                        
+                return PIPELET_NEXT;
+            }
+            
+        }
+        
+        
+        
+        if (empty(employeeCO)) {
+            Logger.error("ajaxEditAssociates: Associate could not be found");
+            args.ErrorStatus = Resource.msg('ajaxEditAssoc.objMissingError', 'strings', null);
+            return PIPELET_ERROR;
+        }
+        if(!empty(permissions)){
+            employeeCO.custom.permissionGroupId = permissions;
+        }
+        
+        if(!empty(isLocked)){
+            employeeCO.custom.isLocked = isLocked;
+        }
+        EditAssociateJSONResponse.message = Resource.msg('ajaxEditAssoc.JSONRespSuccess', 'strings', null);
+        
+        args.EditAssociateJSONResponse = JSON.stringify(EditAssociateJSONResponse);
+    }
+    catch(e){
+        Logger.error("Cannot update custom object for store"+" " + storeId + " (" + e + ")");
+        args.ErrorStatus = Resource.msgf('ajaxEditAssoc.objUpdateError', 'strings', null, storeId, e);
+        return PIPELET_ERROR;
+    }
+    return PIPELET_NEXT;
+}

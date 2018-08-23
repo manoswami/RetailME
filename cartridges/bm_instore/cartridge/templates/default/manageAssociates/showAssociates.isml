@@ -1,0 +1,208 @@
+<iscontent type="text/html" charset="UTF-8"/>
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<isdecorate template="application/MenuFrame">
+<isinclude template="util/modules">
+
+<!-- Page Navigator -->
+<isset name="preferencesURL"   value="${URLUtils.url('SiteNavigationBar-ShowMenuitemOverview', 'CurrentMenuItemId', 'site-prefs')}" scope="PAGE">
+<isbreadcrumbs bctext1="${Resource.msg('breadcrumb.preferences','strings',null)}" bcurl1="${preferencesURL}" bctext2="${Resource.msg('breadcrumb.manageAssociate','strings',null)}" >
+<br>
+<!-- EO Page Navigator -->
+
+
+<!--- including showAssociates.js--->
+<script type="text/javascript">
+    var ajaxlockUnlockURL = "${URLUtils.url('AjaxManageAssociates-LockUnlock')}";
+</script>
+<script src="${URLUtils.staticURL('/js/showAssociates.js')}" type="text/javascript"></script>
+<link rel="stylesheet" type="text/css" href="${URLUtils.staticURL('/css/on_off_switch.css')}" >
+
+<!-- errors -->
+<isif condition="${!empty(pdict.ErrorStatus)}"> 
+    <table border="0" cellspacing="0" cellpadding="4" width="100%" class="error_box n s e w">
+        <tr valign="top">
+            <td class="error_icon top e"><img src="${URLUtils.webRoot()}/images/error.gif" width="16" height="15" alt="" border="0"/></td>
+            <td class="error top" width="100%">
+            <p>Error: <isprint value="${pdict.ErrorStatus}"><br/>
+            </td>
+        </tr>
+    </table>
+</isif>
+<!-- end errors-->
+
+<!-- set up permissions group mapping array -->
+<isscript>var pgMap = [];</isscript>
+<isloop items="${pdict.PermissionGroupList}" var="pg" status="pgLoop">
+    <isscript>pgMap["" + pg.custom.permissionGroupId] = pg.custom.permissionGroupName + " (" + pg.custom.permissionGroupId + ')';</isscript>
+</isloop>
+<!-- end of permissions group mapping array setup -->
+
+<isscript>
+    var storeName = {}; 
+    var storeDropdown : String = '';
+    var existingStoreIds = [];
+    var sResult = pdict.SearchResult.asList();
+    var allStore= dw.object.SystemObjectMgr.querySystemObjects("Store", ' ' , 'name ASC').asList();
+    
+    for each(storeCredential in sResult.iterator()){
+        for each(store in allStore.iterator()){
+            if(store.ID == storeCredential.custom.storeId ){
+                storeName[store.ID] = store.name+
+                            ' | '+store.city+ ', ' +
+                            (store.stateCode?store.stateCode:'')+
+                            ' '+(store.postalCode?store.postalCode:'')+' ('+store.ID+') ';    
+                
+            }
+        }
+        storeDropdown +='<option value="'+storeCredential.custom.storeId+'"'
+                                +(storeCredential.custom.storeId==pdict.CurrentHttpParameterMap.selectedStoreId.value?' selected':'')
+                                +' >'
+                                + (storeName[storeCredential.custom.storeId]?storeName[storeCredential.custom.storeId]:storeCredential.custom.storeId)
+                                +'</option>';
+        existingStoreIds.push(storeCredential.custom.storeId); 
+    }
+    var currentSelectedStoreId = pdict.CurrentHttpParameterMap.selectedStoreId.value?pdict.CurrentHttpParameterMap.selectedStoreId.value.split(','):existingStoreIds;
+</isscript>    
+                    
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+
+    <tr>
+        <td width="100%" class="w e s table_title"><isprint value="${Resource.msg('showassociate.title','strings',null)}"/></td>
+    </tr>
+
+    <tr>
+        <td valign="top" class="table_title_description w e s">
+            <p>
+                <form action="${dw.web.URLUtils.continueURL()}"  method="post">
+                    <input type="submit" id="addStore" class="button" value="${Resource.msg('showassociate.addStore','strings',null)}" name="addStore">
+                    <input type="submit" id="EASalesReport" class="button" value="${Resource.msg('EASalesReports.title','strings',null)}" name="EASalesReport">
+                </form>
+            </p>
+            <p><isprint value="${Resource.msg('showassociate.description','strings',null)}"/></p>
+                        
+        </td>
+    </tr>
+    
+    <tr>
+        <td class=" ">
+            <br>
+            <form action="${dw.web.URLUtils.continueURL()}"  method="post">
+                <label for="selectedStoreId" style="font-weight:bold;font-size: 20px;">
+                     ${Resource.msg('showassociate.selectToFilter','strings',null)}
+                 </label>
+                <select class="required" name="selectedStoreId" onChange="this.form.submit()" style="font-weight:bold;font-size: 16px;">
+                    <option  value="${existingStoreIds.join(',')}">
+                        ${Resource.msg('showassociate.allExistingStores','strings',null)}
+                    </option>
+                    <isprint value="${storeDropdown}" encoding="off" />
+                </select>
+            
+            </form>
+        </td>
+    </tr>
+    <tr><td>&nbsp;</td></tr>
+
+    <isloop items="${pdict.SearchResult}" var="store" status="storeLoop">
+          <isif condition="${currentSelectedStoreId.indexOf(store.custom.storeId) >-1 }">
+            <tr width="100%">
+                <td width="100%">
+                    <form action="${dw.web.URLUtils.continueURL()}"  id="form_${store.custom.storeId}" method="post">
+                        <input type="hidden" name="storeid" value="${store.custom.storeId}"/>
+                        <input type="hidden" name="selectedStoreId" value="${currentSelectedStoreId.join(',')}"/>
+                        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                            <tr>
+                                <td width="100%" class="w e s table_title">
+                                    ${(storeName[store.custom.storeId]?storeName[store.custom.storeId]:store.custom.storeId)}
+                                </td>
+                            </tr>
+                
+                            <isscript>
+                                var empList = store.custom.associateIDs ? store.custom.associateIDs.split(','):[];
+                            </isscript>
+                            <tr>
+                                <td class="w e s">
+                                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                        <tr>
+                                            <td class="table_header w s center" width="25px">Select</td>
+                                            <td class="table_header w s"><isprint value="${Resource.msg('showassociate.id','strings',null)}"/></td>
+                                            <td class="table_header w s"><isprint value="${Resource.msg('showassociate.firstName','strings',null)}"/></td>
+                                            <td class="table_header w s"><isprint value="${Resource.msg('showassociate.lastName','strings',null)}"/></td>
+                                            <td class="table_header w s"><isprint value="${Resource.msg('showassociate.permissions','strings',null)}"/></td>
+                                            <td class="table_header w s center"><isprint value="${Resource.msg('showassociate.hasPassword','strings',null)}"/></td>
+                                            <td class="table_header w s center"><isprint value="${Resource.msg('showassociate.loginAttempts','strings',null)}"/></td>
+                                            <td class="table_header w s center"><isprint value="${Resource.msg('showassociate.lockedout','strings',null)}"/></td>                        
+                                        </tr>                
+                                     
+                                        <isloop items="${empList}" var="employeeNumber" status="empLoop">
+                                            <isscript>
+                                                var employee = dw.object.CustomObjectMgr.getCustomObject("associates", employeeNumber);
+                                                
+                                            </isscript>    
+                                            <isif condition="${!empty(employee)}">
+                                                <tr>
+                                                    <td class="table_detail w s center">
+                                                        <input type="radio" name="SelectEmployee" value="${employee.custom.employeeId}" id="select_${employee.custom.employeeId}"/>
+                                                    </td>
+                                                    <td class="table_detail w s">${employee.custom.employeeId.trim().substring(1)}</td>
+                                                    <td class="table_detail w s">${employee.custom.firstName}</td>
+                                                    <td class="table_detail w s">${employee.custom.lastName}</td>
+                                                    <td class="table_detail w s">${pgMap[employee.custom.permissionGroupId]}</td>
+                                                    <td class="table_detail w s center">${(employee.custom.hashedCode != "") ? 'YES' : 'NO'}</td>
+                                                    <td class="table_detail w s center">${employee.custom.loginAttempts}</td>
+                                                    <td class="table_detail w s">
+                                                        <div class="onoffswitch">
+                                                            <input type="checkbox" value="${employee.custom.employeeId.trim()}" name="onoffswitch${employee.custom.employeeId.trim()}" class="onoffswitch-checkbox" id="myonoffswitch${employee.custom.employeeId.trim()}" ${(employee.custom.isLocked) ? 'checked' : ''}>
+                                                            <label class="onoffswitch-label" for="myonoffswitch${employee.custom.employeeId.trim()}">
+                                                                <span class="onoffswitch-inner"></span>
+                                                                <span class="onoffswitch-switch"></span>
+                                                            </label>
+                                                        </div>
+                                                    </td>
+                                        
+                                                </tr>
+                                            </isif>
+                                        </isloop>
+                                    </table>
+                                </td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="w e s">
+                                    <table width="100%">
+                                        <tr>
+                                            <td align="left">
+                                                <input type="submit" id="storeManagerPassword" class="button" value="${Resource.msg('showassociate.storePassword','strings',null)}" name="storeManagerPassword">
+                                            </td>
+                                            
+                                            <td align="right">
+                                                <table border="0" cellspacing="4" cellpadding="0">
+                                                    <tbody>
+                                                        <tr>
+                                                            <td class="button"><input type="submit" id="add" class="button" value="${Resource.msg('showassociate.addAssociate','strings',null)}" name="add"></td>
+                                                            <td class="button"><input type="submit" id="deleteAssociate" class="button" value="${Resource.msg('showassociate.deleteAssociate','strings',null)}" name="deleteAssociate"></td>
+                                                            <td class="button"><input type="submit" id="changePassword" class="button" value="${Resource.msg('showassociate.changePassword','strings',null)}" name="changePassword"></td>
+                                                            <td class="button"><input type="submit" id="modifyAssociate" class="button" value="${Resource.msg('showassociate.modifyAssociate','strings',null)}" name="modifyAssociate"></td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+            
+                            <tr>
+                                <td>&nbsp;</td>
+                            </tr>
+                        </table>
+                    </form>
+                </td>
+            </tr>
+            
+        </isif>
+    </isloop>
+
+</table>
+
+</isdecorate>

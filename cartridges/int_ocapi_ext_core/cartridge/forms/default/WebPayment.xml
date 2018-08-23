@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!-- ©2015-2018 salesforce.com, inc. All rights reserved. -->
+<form>
+    <field formid="orderNumber" label="webpayment.orderNumber"
+        type="string" binding="orderNo">
+    </field>
+    <field formid="orderDate" label="webpayment.orderDate" type="date"
+        timezoned="false" format="MM dd, YYYY" binding="creationDate">
+    </field>
+    <field formid="orderTotal" label="webpayment.ordertotal" type="number"
+        binding="totalGrossPrice.value">
+    </field>
+    <field formid="balanceDue" label="webpayment.balanceDue" type="number"
+        binding="totalGrossPrice.value">
+    </field>
+
+    <action formid="clear" valid-form="true" />
+    <action formid="apply" valid-form="true" />
+    <action formid="go" valid-form="true" />
+    <action formid="cancel" valid-form="false" />
+    <action formid="confirm" valid-form="true" />
+</form>

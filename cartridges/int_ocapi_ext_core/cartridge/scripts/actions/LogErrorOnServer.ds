@@ -1,0 +1,25 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Outputs the error status
+*
+*  @input ErrorMessage : String The error message to log.*
+*  @input EmailAdmin : Boolean Indicates whether error should be emailed.*
+*  @input LogOnServer : Boolean Indicates whether error should be added to log.*
+*/
+
+importPackage( dw.system );
+
+function execute( args : PipelineDictionary ) : Number {
+    var logger : Log = Logger.getLogger("instore-errors");
+    logger.info("logErrorOnServer: entering script");
+
+    logger.error(args.ErrorMessage);
+
+    logger.info("logErrorOnServer: exiting script");
+    return PIPELET_NEXT;
+}
+
+module.exports = {
+    execute : execute
+};

@@ -1,0 +1,95 @@
+/**
+ * ©2017-2018 salesforce.com, inc. All rights reserved.
+ * ArchiveEADeviceLogs - Archive endless aisle device logs
+ *
+ *   @input currentJobParams : Object
+ *
+ */
+
+importPackage(dw.system);
+importPackage(dw.io);
+importPackage(dw.util);
+
+var EA_LOG_FILES_QUOTA = 500;
+var log: Log = Logger.getLogger('instore-audit-trail');
+
+function execute(jobParams): Number {
+    var dir = File.IMPEX + '/src/ealogs';
+
+    if (!isNaN(Number(jobParams.EA_LOG_FILES_QUOTA)) && Number(jobParams.EA_LOG_FILES_QUOTA) <= EA_LOG_FILES_QUOTA) {
+        EA_LOG_FILES_QUOTA = Number(jobParams.EA_LOG_FILES_QUOTA);
+    }
+
+    try {
+        log.info('Archiving Endless Aisle device logs');
+        zipFiles(dir);
+        return PIPELET_NEXT;
+    } catch (exp) {
+        log.error('Archive job failed: ' + exp);
+        return PIPELET_ERROR;
+    }
+
+}
+
+
+/*
+ * zipFiles - Zip  endless aisle device logs
+ * @param {String} dir -  log files directory path
+ */
+function zipFiles(dir: String) {
+    var EALogDir: File = new File(dir);
+    var now = new Date();
+
+    //destination directory for all archived log files
+    var EALogArchivesDir = new File(File.IMPEX + '/src/EALogArchives');
+
+    if (!EALogDir.exists()) {
+        EALogDir.mkdir();
+    }
+    if (!EALogArchivesDir.exists()) {
+        EALogArchivesDir.mkdir();
+    }
+
+    var today = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
+    var archiveSubDirPath = File.IMPEX + '/src/EALogArchives/' + today;
+    // subdirectory for the archived files of the day
+    var archiveSubDir = new File(archiveSubDirPath);
+
+
+    if ((EALogDir === null) || (!EALogDir.isDirectory())) {
+        log.error(dir + ' is not a valid directory');
+    } else {
+        if (!archiveSubDir.exists()) {
+            archiveSubDir.mkdir();
+        }
+        // list of files under EALogDir
+        var list: Array = EALogDir.list();
+
+        // we only archive the ealogs directory if the number of files contained in the directory is equal to or greater  than the amount specified in EA_LOG_FILES_QUOTA
+        if (list.length >= EA_LOG_FILES_QUOTA) {
+
+            var archiveFile = new File(archiveSubDirPath + '/' + now.toJSON() +
+                '.zip');
+
+            EALogDir.zip(archiveFile); // zip the log directory and save the output file under the path specified in archiveFile
+
+            // Now we want to empty the ealogs directory
+            for (var idx = 0; idx < list.length; idx++) {
+                var file = new File(EALogDir.getFullPath() + '/' + list[idx]);
+                if (!file.isDirectory()) {
+                    var remove: Boolean = file.remove();
+                    if (!remove) {
+                        log.error('unable to delete file ' + file.getFullPath());
+                    }
+                }
+
+            }
+        }
+
+    }
+
+}
+
+module.exports = {
+    execute: execute
+};

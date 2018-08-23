@@ -1,0 +1,403 @@
+/**
+* ©2016-2018 salesforce.com, inc. All rights reserved.
+*
+*Collection of functions helpers for generating sales report data
+*
+*/
+
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.util );
+importPackage( dw.order );
+importPackage( dw.web );
+importScript("api/EAStatus.ds");
+
+/*
+ * getAllAssociatesFromStore - Get all associates assigned to a certain store
+ * @param {String} storeID - storeID
+ * @return {Array} array of store Employees
+ */
+function getAllAssociatesFromStore(storeID) {
+    var storeObj : CustomObject = CustomObjectMgr.getCustomObject("storeAssociates", storeID);
+    var storeEmployees = !empty(storeObj.custom.associateIDs) ? storeObj.custom.associateIDs : "" ;
+    storeEmployees = storeEmployees.split(',');
+    var storeEmployeesObject = [];
+    storeEmployees.forEach(function(employee,idx) {
+        var employeeCO : CustomObject = CustomObjectMgr.getCustomObject("associates", employee);
+        if (employeeCO) {
+            storeEmployeesObject.push({
+                id : employee.substring(1, employee.length),
+                firstName : employeeCO.custom.firstName,
+                lastName : employeeCO.custom.lastName
+            });
+        }
+    });
+    return storeEmployeesObject;
+}
+
+/*
+ * getOrderStatusFromOrder - Get order status
+ * @param {Object} order - order
+ * @return {String} order status
+ * 
+ */
+function getOrderStatusFromOrder(order) {
+    var currentOrderStatus = order.getStatus(),
+        currentShippingStatus = order.getShippingStatus();
+    if ((currentOrderStatus == dw.order.Order.ORDER_STATUS_NEW || currentOrderStatus == dw.order.Order.ORDER_STATUS_OPEN) && 
+        (currentShippingStatus == dw.order.Order.SHIPPING_STATUS_SHIPPED) || 
+        (currentOrderStatus == dw.order.Order.ORDER_STATUS_COMPLETED)) {
+        status = Resource.msg('salesReport.orderStatus.shipped', 'reports', null);
+    } else if ((currentOrderStatus == dw.order.Order.ORDER_STATUS_NEW || currentOrderStatus == dw.order.Order.ORDER_STATUS_OPEN) && 
+               (currentShippingStatus != dw.order.Order.SHIPPING_STATUS_SHIPPED)) {
+        status = Resource.msg('salesReport.orderStatus.beingProcessed', 'reports', null);
+    } else if (currentOrderStatus == dw.order.Order.ORDER_STATUS_FAILED ) {
+        // if there are failed orders from testing we don't want to include
+        status = currentOrderStatus;
+    } else {
+        status = currentOrderStatus.displayValue;
+    } 
+    return status;
+    
+}
+
+/*
+ * parseOrders - Transforms orders return from query into json ready object
+ * @param {Array} orders - raw orders
+ * @return {Object} parsed order
+ */
+function parseOrders(orders) {
+    var filteredOrders = orders;
+    var output : Array = [];
+    var totalAmountSold = 0;
+    for each(var order in filteredOrders ) {
+        var status = getOrderStatusFromOrder(order);
+        if (status == dw.order.Order.ORDER_STATUS_FAILED ) {
+            // if there are failed orders from testing we don't want to include
+            continue;
+        } 
+        
+        totalAmountSold+=order.adjustedMerchandizeTotalNetPrice.value;
+        
+        // Get nicely formatted date
+        var date = order.getCreationDate();
+        var cal : Calendar = new Calendar(date);
+        var niceDate : String = StringUtils.formatCalendar(cal, request.getLocale(), Calendar.LONG_DATE_PATTERN);
+        
+        // get the first product's image
+        var imageURL = '';
+        var product : Product = order.defaultShipment.productLineItems.length > 0 ? order.defaultShipment.productLineItems[0].product : null;
+        if ( product ) {
+            var image : MediaFile = product.getImage("small");
+            if ( image ) {
+                imageURL = image.getAbsURL().toString();
+            }
+        }
+        
+        var overrideObj = getTotalOverrideAmountFromOrder(order.productLineItems),
+            shippingOverridesObj = getShippingOverridesFromOrder(order.shipments);
+        var data = {
+            creationDate : formatDateTime(order.creationDate),
+            niceDate : niceDate,
+            orderNo : order.orderNo,
+            totalNetPrice : order.adjustedMerchandizeTotalNetPrice.value, 
+            status : status,
+            imageURL : imageURL,
+            employeeId : order.custom.eaEmployeeId,
+            totalOverrides : overrideObj.totalAmount,
+            OverridesCount : overrideObj.count,
+            totalShippingOverrides : shippingOverridesObj.totalAmount,
+            shippingOverridesCount : shippingOverridesObj.count,
+            storeId : order.custom.eaStoreId,
+            itemsSoldCount : getTotalItemsSoldCountFromProductLineItemCollection(order.productLineItems)
+        };
+        
+        output.push( data );
+    }
+
+    return {
+        data : output,
+        totalAmountSold : totalAmountSold
+    };
+}
+
+/*
+ * getTotalItemsSoldCountFromProductLineItemCollection - get the total quantity of product sold through the current order product line items array
+ * @param {Array} PLIcollection - product line item array
+ * @return {Number} total quantity of products
+ * 
+ */
+function getTotalItemsSoldCountFromProductLineItemCollection(PLIcollection) {
+    var totalCount = 0 ;
+    if (PLIcollection.length > 0) {
+        for ( var idx = 0; idx < PLIcollection.length; idx++) {
+            var productLineItem = PLIcollection[idx];
+            totalCount+=productLineItem.quantityValue;
+        }
+    }
+    return totalCount;
+}
+
+/*
+ * getTotalItemsSold - get total number of items sold from parsed orders object
+ * @param {Array} parsedOrders - parsed orders
+ * @return {Number} total items sold
+ * 
+ */
+function getTotalItemsSold(parsedOrders) {
+    var totalItemsSold = 0;
+    parsedOrders.forEach(function(order) {
+        totalItemsSold += order.itemsSoldCount;
+    });
+    return totalItemsSold;
+}
+
+
+/*
+ * getAverageBasketAmountAndSize - get Average Basket Amount And Size parsed orders object
+ * @param {Array} parsedOrders - parsed orders
+ * @return {Object} average basket amount and size
+ *  
+ */
+function getAverageBasketAmountAndSize(parsedOrders) {
+    var totalBasketCount = 0,
+        totalBasketAmount = 0;
+    parsedOrders.forEach(function(order) {
+        totalBasketAmount += order.totalNetPrice;
+        totalBasketCount += order.itemsSoldCount;
+    });
+
+    return {
+        amount : Math.floor(totalBasketAmount/(parsedOrders.length > 0 ? parsedOrders.length : 1)),
+        size : (totalBasketCount/(parsedOrders.length > 0 ? parsedOrders.length : 1)).toFixed(2)
+    };
+}
+
+
+/*
+ * formatDate - format date in yyyy-mm-dd format
+ * @param {String} date - String representing date
+ * @return {String} formated date String 
+ */
+function formatDate(date) {
+    var d = new Date(date),
+        month = '' + (d.getMonth() + 1),
+        day = '' + d.getDate(),
+        year = d.getFullYear();
+
+    if (month.length < 2) month = '0' + month;
+    if (day.length < 2) day = '0' + day;
+
+    return [year, month, day].join('-');
+}
+
+
+/*
+ * formatDate - format date in yyyy-mm-ddTHH:MM:SS format
+ * @param {String} date - String representing date
+ * @return {String} formated date and time String 
+ */
+function formatDateTime(date) {
+    var d = new Date(date),
+        dateStr = formatDate(date);
+    var H = ''+d.getHours(),
+        M = ''+d.getMinutes(),
+        S = ''+d.getSeconds();
+    var HH = (H.length<2?'0'+H:H),
+        MM = (M.length<2?'0'+M:M),
+        SS = (S.length<2?'0'+S:S);
+    return    dateStr+'T'+HH+':'+MM+':'+SS+'.000Z';
+}
+
+/*
+ * getTotalAdjustmentAmount - get total adjustments amount from order adjustments array
+ * @param {Array} adjustments - order adjustments array
+ * @return {Number} total amount of adjustments
+ * 
+ */
+function getTotalAdjustmentAmount(adjustments) {
+    var totalAmount = 0;
+    if (adjustments.length>0) {
+        for ( var idx = 0;idx< adjustments.length;idx++) {
+            totalAmount += adjustments[idx].grossPrice.value;
+        }
+    }
+    
+    return totalAmount;
+}
+
+
+/*
+ * getTotalOverrideObj - returns total products override total count and amount from parsed orders object
+ * @param {Array} parsedOrders - parsed orders
+ * @return {Object} total amount and number of override
+ */
+function getTotalOverrideObj(parsedOrders) {
+    var totalAmount = 0;
+    var count = 0;
+    parsedOrders.forEach(function(order) {
+        count+=order.OverridesCount;
+        totalAmount+= order.totalOverrides;
+    });
+    return {
+        amount : totalAmount,
+        count : count
+    };
+}
+
+
+/*
+ * getTotalOverrideAmountFromOrder - returns  total products override count and amount from  a collection of products sold through a single raw EA order product line items array
+ * @param {Array} productLineItems - product line items 
+ * @return {Object} total amount and count of override
+ */
+function getTotalOverrideAmountFromOrder(productLineItems) {
+    var totalAmount = 0;
+    var count = 0;
+    
+    if (productLineItems.length>0) {
+        for (var idx = 0;idx< productLineItems.length;idx++) {
+            var priceOverrideObj = productLineItems[idx].custom;
+            var customAttr = JSON.parse(priceOverrideObj.eaCustomAttributes);
+            
+            if (customAttr && customAttr.price_override == 'true') {
+                // this is for the older orders where override was part of custom attributes
+                count++;
+                totalAmount += (customAttr.base_price * productLineItems[idx].quantityValue) - customAttr.price;
+            } else {
+                // this is for the new orders where overrides are done through ocapi and no custom attributes
+                var overrides = productLineItems[idx].priceAdjustments;
+                for (var i=0; i<overrides.length; i++) {
+                    var override = overrides[i];
+                    if (override.manual == true) {
+                        count++;
+                        totalAmount += Math.abs(override.price);
+                    }
+                }
+            }
+        }
+    }
+    
+    return {
+        totalAmount : totalAmount,
+        count : count
+    };
+}
+
+
+/*
+ * getShippingOverridesFromOrder - returns  total shipping override count and amount from  a collection of shipments created through a single EA order
+ * @param {Array} shipments - shipments
+ * @return {Object} total amount and count of shipments
+ */
+function  getShippingOverridesFromOrder(shipments) {
+    var totalAmount = 0;
+    var count = 0;
+    if (shipments.length>0) {
+        for (var index = 0;index< shipments.length;index++) {
+            var shippingLineItems = shipments[index].shippingLineItems;
+            
+            for (var idx = 0;idx< shippingLineItems.length;idx++) {
+                var shipmentOverrideObj = shippingLineItems[idx].custom;
+                var customAttr = JSON.parse(shipmentOverrideObj.eaCustomAttributes);
+                
+                if (customAttr && customAttr.price_override == 'true') {
+                    // this is for the older orders where overrides were part of custom attributes
+                    count++;
+                    totalAmount += (customAttr.base_price - customAttr.base_price_override) ;
+                } else {
+                    // this is for the new orders where overrides are done through ocapi and no custom attributes
+                    var overrides = shipments[index].shippingPriceAdjustments;
+                    for (var i=0; i<overrides.length; i++) {
+                       var override = overrides[i];
+                       if (override.manual == true) {
+                           count++;
+                           totalAmount += Math.abs(override.price);
+                       }
+                    }
+                }
+                
+            }
+        }
+    }
+    return {
+        totalAmount : totalAmount,
+        count : count
+    };
+}
+
+
+/*
+ * getTotalShippingOverrideObj - returns  total shipping override total count and amount from parsed orders object
+ * @param {Array} parsedOrders - parsed orders
+ * @return {Object} total amount and number of shipping override
+ */
+function getTotalShippingOverrideObj(parsedOrders) {
+    var totalAmount = 0;
+    var count = 0;
+    parsedOrders.forEach(function(order) {
+        count+=order.shippingOverridesCount;
+        totalAmount+= order.totalShippingOverrides;
+    });
+    return {
+        amount : totalAmount,
+        count : count
+    };
+}
+
+
+/*
+ * getAllSalesReportslocalizedStrings - returns all strings from reports.properties file. This function should be updated along with reports.properties
+ * @return {Object} all localized strings
+ * 
+ */
+function getAllSalesReportslocalizedStrings() {
+    return {
+        quickStats : {
+            totalProductOverride : Resource.msg('salesReport.quickStats.totalProductOverride', 'reports', null),
+            totalNumberProductOverride : Resource.msg('salesReport.quickStats.totalNumberProductOverride', 'reports', null),
+            totalShippingOverride : Resource.msg('salesReport.quickStats.totalShippingOverride', 'reports', null),
+            totalNumberShippingOverride : Resource.msg('salesReport.quickStats.totalNumberShippingOverride', 'reports', null), 
+            totalOrder : Resource.msg('salesReport.quickStats.totalOrder', 'reports', null),
+            totalAmountsold : Resource.msg('salesReport.quickStats.totalAmountsold', 'reports', null),
+            averageBasketAmount : Resource.msg('salesReport.quickStats.averageBasketAmount', 'reports', null),
+            averageBasketAmountCount : Resource.msg('salesReport.quickStats.averageBasketAmountCount', 'reports', null),
+            totalAdjustmentCount : Resource.msg('salesReport.quickStats.totalAdjustmentCount', 'reports', null),
+            totalAdjustment : Resource.msg('salesReport.quickStats.totalAdjustment', 'reports', null)
+        },
+        orderStatus : {
+            shipped : Resource.msg('salesReport.orderStatus.shipped', 'reports', null),
+            beingProcessed : Resource.msg('salesReport.orderStatus.beingProcessed', 'reports', null)
+        },
+        sales : Resource.msg('salesReport.sales', 'reports', null),
+        stores : Resource.msg('salesReport.sales', 'reports', null),
+        date : Resource.msg('salesReport.date', 'reports', null),
+        associates : Resource.msg('salesReport.associates', 'reports', null),
+        categories : Resource.msg('salesReport.categories', 'reports', null),
+        products : Resource.msg('salesReport.products', 'reports', null),
+        totalSold : Resource.msg('salesReport.totalSold', 'reports', null),
+        show : Resource.msg('salesReport.show', 'reports', null),
+        showImage : Resource.msg('salesReport.showImage', 'reports', null),
+        showVariants : Resource.msg('salesReport.showVariants', 'reports', null),
+        totalOrders : Resource.msg('salesReport.totalOrders', 'reports', null),
+        numberOfOrders : Resource.msg('salesReport.numberOfOrders', 'reports', null),
+        totalProductOverides : Resource.msg('salesReport.totalProductOverides', 'reports', null),
+        totalNumberOfProductsOverides : Resource.msg('salesReport.totalNumberOfProductsOverides', 'reports', null),
+        variants : Resource.msg('salesReport.variants', 'reports', null),
+        itemSold : {
+            categoryChartTitle : Resource.msg('salesReport.itemSold.categoryChartTitle', 'reports', null),
+            productChartTitle : Resource.msg('salesReport.itemSold.productChartTitle', 'reports', null), 
+            variantionChartColum1 : Resource.msg('salesReport.itemSold.variantionChartColum1', 'reports', null)
+        }
+    };
+}
+
+module.exports = {
+    getAllAssociatesFromStore : getAllAssociatesFromStore,
+    parseOrders : parseOrders,
+    getTotalItemsSold : getTotalItemsSold,
+    getAllSalesReportslocalizedStrings : getAllSalesReportslocalizedStrings,
+    getTotalOverrideObj : getTotalOverrideObj,
+    getTotalShippingOverrideObj : getTotalShippingOverrideObj,
+    getAverageBasketAmountAndSize : getAverageBasketAmountAndSize
+};

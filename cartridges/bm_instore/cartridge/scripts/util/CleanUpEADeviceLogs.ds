@@ -1,0 +1,161 @@
+/**
+ * ©2017-2018 salesforce.com, inc. All rights reserved.
+ * CleanUpEADeviceLogs - Clean up endless aisle device logs
+ *
+ *   @input currentJobParams : Object
+ *
+ */
+
+importPackage(dw.system);
+importPackage(dw.io);
+importPackage(dw.util);
+importPackage(dw.net);
+importPackage(dw.web);
+
+var ARCHIVE_LIFETIME_IN_DAYS = 30;
+var TIME_TO_NOTIFY_IN_DAYS = 7;
+var ADMIN_EMAILS;
+var SERVER_HOSTNAME;
+var EMAIL_REGEX = new RegExp('^[A-Z0-9._%-]+@[A-Z0-9.-]+\\.[A-Z]{2,4}$', 'i');
+var log: Log = Logger.getLogger("instore-audit-trail");
+var toBeSoonDeleted = [];
+
+function execute(jobParams): Number {
+
+    ADMIN_EMAILS = jobParams.ADMIN_EMAILS;
+    SERVER_HOSTNAME = jobParams.SERVER_HOSTNAME;
+    if (!isNaN(Number(jobParams.ARCHIVE_LIFETIME_IN_DAYS))) {
+        ARCHIVE_LIFETIME_IN_DAYS = Number(jobParams.ARCHIVE_LIFETIME_IN_DAYS);
+    }
+    if (!isNaN(Number(jobParams.TIME_TO_NOTIFY_IN_DAYS))) {
+        TIME_TO_NOTIFY_IN_DAYS = Number(jobParams.TIME_TO_NOTIFY_IN_DAYS);
+    }
+
+    try {
+        log.info('Cleaning up Endless Aisle device logs');
+        purgeOutdatedArchives();
+        return PIPELET_NEXT;
+    } catch (exp) {
+        log.error('Endless Aisle device logs clean up  job failed: ' + exp);
+        return PIPELET_ERROR;
+    }
+
+}
+
+
+
+/*
+ * purgeOutdatedArchives - Delete outdated archived log files and email admin about soon to be deleted archive files
+ */
+function purgeOutdatedArchives() {
+
+    var now = new Date();
+    var EALogArchivesDir: File = new File(File.IMPEX + "/src/EALogArchives");
+
+    if ((EALogArchivesDir === null) || (!EALogArchivesDir.isDirectory())) {
+        log.error("directory " + File.IMPEX + "/src/EALogArchives" +
+            " is not a valid directory");
+
+    } else {
+
+        var archiveContentList: Array = EALogArchivesDir.list();
+
+        for (var idx = 0; idx < archiveContentList.length; idx++) {
+            var file = new File(EALogArchivesDir.getFullPath() + "/" +
+                archiveContentList[idx]);
+            if (!file.isDirectory()) {
+                removeSingleFile(file, now);
+            } else {
+                removeSingleDirectory(file, now)
+            }
+        }
+
+        if (toBeSoonDeleted.length > 0 && ADMIN_EMAILS) {
+            var mail = new Mail();
+            var emailContent = Resource.msgf('EADeviceLogs.notificationEmailContent',
+                'strings',
+                null,
+                SERVER_HOSTNAME,
+                toBeSoonDeleted.join('\n'));
+            mail.setSubject(Resource.msgf('EADeviceLogs.notificationEmailSubject',
+                'strings',
+                null,
+                SERVER_HOSTNAME));
+            var emailAddresses = ADMIN_EMAILS.split(',');
+            for (var eIdx = 0; eIdx < emailAddresses.length; eIdx++) {
+                var eAddr = emailAddresses[eIdx].trim();
+                if (EMAIL_REGEX.test(eAddr)) {
+                    mail.addTo(eAddr)
+                } else {
+                    log.error(eAddr + ' is inavlid')
+                }
+            }
+            mail.setFrom('no-reply@salesforce.com');
+            mail.setContent(emailContent);
+            mail.send();
+        } else if (!ADMIN_EMAILS) {
+            log.error('No email address was set');
+        }
+
+    }
+}
+
+/*
+ * milliSecondsToDays - convert milliseconds to days
+ * @param {Number} milliSec - milliseconds
+ * @return {Number}
+ */
+function milliSecondsToDays(milliSec) {
+    return (milliSec / (1000 * 60 * 60 * 24));
+}
+
+
+/*
+ * removeSingleDirectory -removes a single directory (Which involves removing all its content first)
+ * @param {File} cDirectory - File to be deleted
+ * @param {Date} now - Current date object
+ */
+function removeSingleDirectory(cDirectory, now) {
+    var cDirContentList: Array = cDirectory.list();
+
+    for (var idx = 0; idx < cDirContentList.length; idx++) {
+        var file = new File(cDirectory.getFullPath() + "/" + cDirContentList[
+            idx]);
+        if (!file.isDirectory()) {
+            removeSingleFile(file, now);
+        } else {
+            removeSingleDirectory(file, now);
+        }
+    }
+
+    if (cDirectory.list().length == 0) {
+        var remove: Boolean = cDirectory.remove();
+        if (!remove) {
+            log.error("unable to delete directory " + cDirectory.getFullPath());
+        }
+    }
+
+    return;
+}
+
+/*
+ * removeSingleFile -removes a single file or check if file lifetime is close to end
+ * @param {File} cFile - File to be deleted
+ * @param {Date} now - Current date object
+ */
+function removeSingleFile(cFile, now) {
+    var fLifetime = milliSecondsToDays(now.getTime() - cFile.lastModified());
+    if (fLifetime >= ARCHIVE_LIFETIME_IN_DAYS) {
+        var remove: Boolean = cFile.remove();
+        if (!remove) {
+            log.error("unable to delete file " + cFile.getFullPath());
+        }
+    } else if (ARCHIVE_LIFETIME_IN_DAYS > fLifetime && (ARCHIVE_LIFETIME_IN_DAYS - fLifetime) <= TIME_TO_NOTIFY_IN_DAYS) {
+        toBeSoonDeleted.push(cFile.getFullPath());
+    }
+    return;
+}
+
+module.exports = {
+    execute: execute
+};

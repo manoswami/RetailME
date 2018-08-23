@@ -1,0 +1,48 @@
+/**
+* ©2015-2018 salesforce.com, inc. All rights reserved.
+*
+* addStore - Creates store credentials .
+*
+*   @input storeId : String
+*   @input eaStoreUsername : String
+*   @input password : String
+*   @input confirmPassword : String
+*   @input employeeIds : Object
+*
+*   @output ErrorStatus : String
+*
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.crypto );
+importPackage( dw.web );
+
+function execute( args : PipelineDictionary ) : Number
+{
+    var employeeIds :Array = (args.employeeIds?args.employeeIds:[]);
+    if (empty(args.storeId) || empty(args.eaStoreUsername) || empty(args.password) || empty(args.confirmPassword)) {
+        Logger.error("addStore: missing required input");
+        args.ErrorStatus = Resource.msg('addStore.missingReqInput', 'strings', null);
+        return PIPELET_ERROR;
+    }
+    if(args.password != args.confirmPassword){
+        Logger.error("addStore: passwords mismatch");
+        args.ErrorStatus = Resource.msg('addStore.passwordMismatch', 'strings', null);
+        return PIPELET_ERROR;
+    }
+
+    try{
+        var storeObj : CustomObject = CustomObjectMgr.createCustomObject("storeCredentials", args.storeId);
+        storeObj.custom.eaStoreUsername =  args.eaStoreUsername;
+        storeObj.custom.eaStorePassword = args.confirmPassword;
+        var storeAssociatesObj : CustomObject = CustomObjectMgr.createCustomObject("storeAssociates", args.storeId);
+        if(!empty(employeeIds)){
+            storeAssociatesObj.custom.associateIDs = employeeIds.join(",");
+        }
+        return PIPELET_NEXT;
+    }catch(e){
+        args.ErrorStatus = Resource.msg('addStore.objCreateError', 'strings', null) +" "+ e.causeMessage;
+        Logger.error("addStore: Oops! A store credential for this storeID might already exists: "+e.causeMessage);
+        return PIPELET_ERROR;
+    }
+}

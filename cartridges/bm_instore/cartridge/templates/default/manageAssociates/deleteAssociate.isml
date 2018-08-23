@@ -1,0 +1,66 @@
+<iscontent type="text/html" charset="UTF-8"/>
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<isdecorate template="application/MenuFrame">
+<isinclude template="util/modules">
+
+<!-- Page Navigator -->
+<isset name="preferencesURL"   value="${URLUtils.url('SiteNavigationBar-ShowMenuitemOverview', 'CurrentMenuItemId', 'site-prefs')}" scope="PAGE">
+<isset name="manageAssocURL"   value="${URLUtils.url('ManageAssociates-Start', 'SelectedMenuItem', 'site-prefs','CurrentMenuItemId', 'site-prefs', 'menuname', 'Manage Associates Extension','mainmenuname','Site Preferences')}" scope="PAGE">
+<isbreadcrumbs bctext1="${Resource.msg('breadcrumb.preferences','strings',null)}" bcurl1="${preferencesURL}" bctext2="${Resource.msg('breadcrumb.manageAssociate','strings',null)}" bcurl2="${manageAssocURL}" bctext3="${dw.web.Resource.msg('deleteassociate.title', 'strings', null)}" >
+<br>
+<br>
+<!-- EO Page Navigator -->
+
+<!-- errors -->
+<isif condition="${!empty(pdict.ErrorStatus)}"> 
+    <table border="0" cellspacing="0" cellpadding="4" width="100%" class="error_box n s e w">
+        <tr valign="top">
+            <td class="error_icon top e"><img src="${URLUtils.webRoot()}/images/error.gif" width="16" height="15" alt="" border="0"/></td>
+            <td class="error top" width="100%">
+            <p>Error: <isprint value="${pdict.ErrorStatus}"><br/>
+            </td>
+        </tr>
+    </table>
+</isif>
+
+<!-- end errors-->
+<isscript>
+    var associate : CustomObject = dw.object.CustomObjectMgr.getCustomObject("associates", pdict.AssociateId);
+    var associateStr = associate.custom.firstName + " " + associate.custom.lastName + " ("+pdict.AssociateId.trim().substring(1)+")";
+    var currentStore = dw.catalog.StoreMgr.getStore(pdict.StoreId);
+    var storeName = currentStore?currentStore.name+
+                    ' | '+currentStore.city+ ', ' +
+                    (currentStore.stateCode?currentStore.stateCode:'')+
+                    ' '+(currentStore.postalCode?currentStore.postalCode:'')+
+                    ' ('+currentStore.ID+') ' : pdict.StoreId;
+    
+        
+    
+</isscript>
+<form action="${dw.web.URLUtils.continueURL()}" method="POST" name="delete">
+    <input type="hidden" name="selectedStoreId" value="${pdict.CurrentHttpParameterMap.selectedStoreId.value?pdict.CurrentHttpParameterMap.selectedStoreId.value:''}"/>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" class="error_box n s e w">    
+            
+            <tr>
+                <td class="error_icon top e"><img src="${URLUtils.webRoot()}/images/error.gif" width="16" height="15" alt="" border="0"/></td>
+                <td width="100%" class="error">
+                    <isprint value="${Resource.msgf('deleteassociate.message', 'strings', null, associateStr, storeName)}"/>
+                </td>
+                <td align="right" class="">
+                    <table border="0" cellspacing="4" cellpadding="0">
+                    <tbody><tr>
+                        <td class="button"><input type="submit" id="delete" class="button" value="${Resource.msg('deleteassociate.delete','strings',null)}" name="delete"></td>
+                        <td class="button"><input type="submit" class="button" value="${Resource.msg('deleteassociate.cancel','strings',null)}" name="cancel"></td>
+                    </tr>
+                    </tbody>
+                    </table>
+                </td>
+            </tr>
+        
+    </table>
+</form>
+
+</isdecorate>
+
+

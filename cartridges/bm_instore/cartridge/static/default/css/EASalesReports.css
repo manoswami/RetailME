@@ -1,0 +1,329 @@
+/**
+* ©2016-2018 salesforce.com, inc. All rights reserved.
+* EASalesReports.css - style sheet for the EA Sales Reports in the BM
+*/
+.wrapper {
+    background-color: #F1F1F1;
+}
+
+.light-gray-bg {
+    background-color: #F1F1F1;
+}
+
+.light-bg {
+    background-color: #FFFFFF;
+}
+
+.shadow {
+    background-color: #FFFFFF;
+    webkit-box-shadow: 0px 0px 2px 0px rgba(85, 85, 85, 1);
+    -moz-box-shadow: 0px 0px 2px 0px rgba(85, 85, 85, 1);
+    box-shadow: 0px 0px 2px 0px rgba(85, 85, 85, 1);
+}
+
+.b-s .modal-content {
+    border-radius: 0px;
+}
+
+.b-s .ea_navbar {
+    background-color: #7fbb00;
+    border-color: #ffffff;
+    border-radius: 0px;
+}
+
+.b-s .navbar-brand .icon-bar {
+    display: block;
+    width: 28px;
+    height: 4px;
+    border-radius: 0px;
+}
+
+.b-s .navbar-brand .icon-bar+.icon-bar {
+    margin-top: 4px;
+}
+
+.b-s .navbar-brand .icon-bar {
+    background-color: #fff;
+}
+
+.b-s .navbar-brand:active  .icon-bar {
+    background-color: #888;
+}
+
+.b-s .middle-title {
+    
+}
+
+.b-s .navbar-collapse {
+    text-align: center;
+}
+
+.b-s .navbar-nav {
+    display: inline-block;
+    float: none;
+}
+
+.b-s .navbar-nav>li>a {
+    padding-bottom: 10px;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-weight: bold;
+    font-size: 16px;
+    color: #fff !important;
+}
+
+.b-s .no_left_right_padding {
+    padding-left: 0px;
+    padding-right: 0px;
+}
+
+.b-s .no_left_padding {
+    padding-left: 0px;
+}
+
+.b-s .no_right_padding {
+    padding-right: 0px;
+}
+
+.b-s .nav-pills>li>a {
+    border-radius: 0px;
+    border-width: 1px;
+    border-color: #7fbb00;
+    border-style: solid;
+    font-size: 22px;
+    font-weight: bold;
+    background-color: #ffffff;
+    white-space: nowrap;
+}
+
+.header-title {
+    border-radius: 0px !important;
+    border-width: 0px !important;
+    border-bottom-width: 1px !important;
+    border-bottom-style: solid !important;
+}
+
+.quick-stat-row {
+    text-align: center;
+    background-color: #ffffff;
+}
+
+.quick-stat-seperator {
+    width: 30%;
+    border-color: #7fbb00 !important;
+}
+
+.quick-stat-row-value {
+    color: #7fbb00 !important;
+    font-size: 26px !important;
+    font-weight: bold;
+    padding-top: 5px;
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+}
+
+.quick-stat-row-text {
+    font-weight: normal !important;;
+    font-size: 18px !important;
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+}
+
+.header-title:hover, .header-active, .header-title:focus {
+    cursor: default !important;
+    background-color: #ffffff !important;
+}
+
+.b-s .nav-pills>li>a:link, .b-s a:visited {
+    color: #7fbb00;
+}
+
+.b-s .nav-pills>li.active>a, .b-s .nav-pills>li.active>a:focus, .b-s .nav-pills>li.active>a:hover
+    {
+    background-color: #7fbb00;
+    color: #fff;
+}
+
+.date-container {
+    text-align: center;
+    font-weight: bold;
+    font-size: 16px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
+
+.carousel-wrapper {
+    height: 462px !important;
+}
+
+.iframe-wrapper {
+    height: 462px !important;
+    /*overflow-y: auto;*/
+}
+
+.iframe {
+    height: 100% !important;
+    width: 100%;
+    /*overflow-y: scroll;*/
+    border-style: none;
+    /*display: table-cell; */
+}
+
+.EA-margin {
+    margin-left: 2.5%;
+}
+
+.activity-indicator {
+    display: none;
+    height: 462px;
+    width: 100%;
+    top: 0;
+    left: 0;
+    background-color: Black;
+    filter: alpha(opacity = 60);
+    opacity: 0.6;
+    -moz-opacity: 0.8;
+    position: absolute;
+}
+
+.center-indicator {
+    display: table;
+    margin: 0 auto;
+    margin-top: 200px;
+}
+
+.indicator {
+    height: 80px;
+    width: 80px;
+}
+
+.reload-button {
+    background-color: #7fbb00 !important;
+    border-radius: 20px;
+    bottom: 10px;
+    display: inline-block;
+    float: right;
+    height: 40px;
+    line-height: normal;
+    margin-right: 10px;
+    position: absolute;
+    text-align: center;
+    width: 40px;
+    z-index: 2;
+    color: #FFFFFF !important;
+    cursor: pointer;
+}
+
+.reload-button:active {
+    color: #000000 !important;
+}
+
+.reload-icon {
+    font-size: 28px;
+    font-weight: bold !important;
+    top: 6px !important;
+    vertical-align: middle;
+}
+
+.store-assoc-list>a {
+    font-size: 16px !important;
+    color: #7FBB00 !important;
+}
+
+li.store-assoc-list>a:active {
+    color: #7FBB00 !important;
+}
+
+li.store-assoc-list.active>a {
+    color: #ffffff !important;
+}
+
+.vertical-alignment-helper {
+    display: table;
+    height: 100%;
+    width: 100%;
+    pointer-events: none;
+    /* This makes sure that we can still click outside of the modal to close it */
+}
+
+.vertical-align-center {
+    /* To center vertically */
+    display: table-cell;
+    vertical-align: middle;
+    pointer-events: none;
+}
+
+.modal-content {
+    /* Bootstrap sets the size of the modal in the modal-dialog class, we need to inherit it */
+    width: inherit;
+    height: inherit;
+    /* To center horizontally */
+    margin: 0 auto;
+    pointer-events: all;
+}
+
+.ea-btn {
+    border-radius: 0px !important;
+    border-color: #cccccc;
+    padding: 7px 20px;
+    color: #ffffff !important;
+    font-size: 18px !important
+}
+
+.ea-btn-primary {
+    background-color: #7FBB00;
+}
+
+.ea-btn-secondary {
+    background-color: #919191;
+}
+
+.select-hint-msg {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    text-align: center;
+}
+
+.help-overlay-text {
+    display: table;
+    margin: 325px auto auto;
+    vertical-align: middle;
+    font-size: 28px;
+    width: 36%;
+    text-align: center;
+    color: white;
+}
+/* ----------------------------------- */
+.b-s #storeAssocNavTitle {
+    cursor: default;
+}
+
+.b-s #ea_close_button {
+    font-size: 22px;
+}
+
+.b-s #ea_close_button span:active {
+    color: #888;
+}
+
+#mainUIOverlay {
+    z-index: 5;
+    height: 100%;
+}
+
+#bm_content_column {
+    padding: 10px 10px 150px;
+}
+/* ----------------------------------- */
+@media screen and (min-width: 768px) {
+    .b-s .col-sm-2 {
+        width: 18.66666667%;
+    }
+}
+
+@media screen and (max-width : 1024px) {
+    .iframe-wrapper {
+        height: 462px !important;
+        overflow-y: scroll;
+        -webkit-overflow-scrolling: touch;
+    }
+}

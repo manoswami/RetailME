@@ -1,0 +1,26 @@
+/**
+* ©2017-2018 salesforce.com, inc. All rights reserved.
+* getStoresForId.ds - returns all the stores using the same business manager user as the store id provided
+*
+*   @input StoreId : String
+*
+*   @output StoreName : String
+*   @output stores : Object
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.crypto );
+importPackage( dw.web );
+importPackage( dw.util );
+importPackage( dw.catalog );
+
+function execute( args : PipelineDictionary ) : Number
+{
+    var storeId : String = args.StoreId;
+    var store = CustomObjectMgr.queryCustomObject("storeCredentials", "custom.storeId = {0}", storeId);
+    // getting all the stores using the business manager user as currentStore
+    var stores = CustomObjectMgr.queryCustomObjects("storeCredentials", "custom.eaStoreUsername = {0}",null, store.custom.eaStoreUsername);
+    args.StoreName = store.custom.eaStoreUsername;
+    args.stores = stores;
+    return PIPELET_NEXT;
+}

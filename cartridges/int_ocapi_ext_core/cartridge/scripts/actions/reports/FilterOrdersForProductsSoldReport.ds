@@ -1,0 +1,343 @@
+/**
+ * ©2016-2018 salesforce.com, inc. All rights reserved.
+ *
+ * Create json ready collection of product objects to be sent to client side of the app
+ *
+ *
+ *   @input filteredOrders : Object
+ *   @output orderData : Object
+ *   @output localizedStrings : Object
+ *
+ */
+ 
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.util );
+importPackage( dw.order );
+importPackage( dw.web );
+importScript("api/EAStatus.ds");
+importScript("util/EASalesReportUtils.ds");
+
+
+var site : Site = Site.getCurrent();
+var sitePrefs : SitePreferences = site.getPreferences();
+var hiddenCategories = sitePrefs.getCustom().eaSalesReportsHiddenCategories;
+
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = filterOrdersForProductsSoldReport(args.filteredOrders);
+    if (result.ErrorMessage) {
+        return PIPELET_ERROR;
+    } else {
+        args.orderData = JSON.stringify(result.orderData,null, '\t');
+        args.localizedStrings = JSON.stringify(result.localizedStrings,null, '\t');
+        return PIPELET_NEXT;
+    }
+}
+
+/**
+ * filterOrdersForProductsSoldReport - filters product data for orders
+ * @param : filteredOrders
+ */ 
+function filterOrdersForProductsSoldReport(filteredOrders) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("filterOrdersForProductsSoldReport: entering script");
+    var result = {};
+    try{
+        var orderData = {
+            httpStatus : 200,
+            products : extractProductsFromOrders(filteredOrders),
+            mainCategoryTree :JSON.stringify(mainCategoryTree)
+        };
+        var localizedStrings = getAllSalesReportslocalizedStrings(); 
+        log.info("filterOrdersForProductsSoldReport: extracted product data from orders ");
+        result = {orderData : orderData, localizedStrings : localizedStrings};
+    } catch(ex) {
+        var ErrorMessage = ex.stringify();
+        result = {ErrorMessage : ErrorMessage};
+    }
+    return result;
+}
+
+/**
+ * extractProductsFromOrders - extracts Products From Orders
+ */
+function extractProductsFromOrders(orders) {
+    var filteredOrders = orders;
+    var output : Array = [];
+
+    for each(var order in filteredOrders ){
+        var status = getOrderStatusFromOrder(order);
+        if (status == dw.order.Order.ORDER_STATUS_FAILED ){
+            // if there are failed orders from testing we don't want to include
+            continue;
+        } 
+        // Get nicely formatted date
+        var date = order.getCreationDate();
+        var cal : Calendar = new Calendar(date);
+        var niceDate : String = StringUtils.formatCalendar(cal, request.getLocale(), Calendar.LONG_DATE_PATTERN);
+
+        //loop through all product from each order and create a json ready object an add to output collection
+        getAllProductDataFromOrder(order).forEach(function(currentProduct){
+            currentProduct.status = status;
+            currentProduct.creationDate = formatDateTime(order.creationDate);
+            currentProduct.niceDate = niceDate;
+            output.push( currentProduct );
+        });
+
+    }
+    return output;
+}
+
+/**
+ * getAllProductDataFromOrder - extract Products From single Order
+ */
+function getAllProductDataFromOrder(order) {
+    var data = [];
+    var productLineItems = order.productLineItems;
+    if (productLineItems.length>0) {
+        for( var idx = 0;idx< productLineItems.length;idx++){
+            var productLineItem = productLineItems[idx];
+            //get parsed product data from each productLineItem object
+            data.push(getProductData(productLineItem));
+        }
+    }
+
+    return data;
+}
+
+/**
+ * getProductData - extract important Product info  From single productlineitem object
+ * @param : productLineItem
+ */
+function getProductData(productLineItem) {
+    var product = productLineItem.product;
+    var imageURL = '';
+    if(product){
+    	var image : MediaFile = product.getImage("large");
+	    if (image) {
+	        imageURL = image.getAbsURL().toString();
+	    }
+    }
+    
+    var data = {
+        name : productLineItem.productName,
+        ID : ((product && product.isVariant()) ? product.masterProduct.ID : productLineItem.productID),
+        categories : getProductCategories(product, productLineItem.quantityValue),
+        quantity : productLineItem.quantityValue,
+        type : getProductType(product),
+        imageURL : imageURL,
+        variants : getProductVariationAttributesFromProduct(product)
+    };
+    return data;
+}
+
+/**
+ * getProductType - get product type
+ * @param : product
+ */
+function getProductType(product) {
+    var type=[];
+    if(product){
+	    if (product.isBundle()) {
+	        type.push('bundle');
+	    }
+	    if (product.isVariant()) {
+	        type.push('variant');
+	    }
+	    if (product.isMaster()) {
+	        type.push('master');
+	    }
+	    if (product.isProductSet()) {
+	        type.push('productset');
+	    }
+	    if (product.isOptionProduct()) {
+	        type.push('optionproduct');
+	    }
+	    if (product.isProduct()) {
+	        type.push('product');
+	    }
+    }
+    return type;
+}
+
+/**
+ * getProductCategories - get Product Categories from product object
+ * @param : product
+ * @param : quantity
+ */
+function getProductCategories(product, quantity) {
+    var allCategories = {};
+    var categories = [];
+    if(product){
+    	categories = product.categories;
+	    if (categories.length==0) {
+	        categories = product.masterProduct.categories;
+	    }
+    }
+    
+    for(var idx =0; idx<categories.length; idx++){
+        var cCat = categories[idx];
+        var categoryLL = getCategoryReversedLinkedListFromCategory(cCat,null);
+        if (isCategoryAllowed(categoryLL)) {
+            allCategories[cCat.ID] = categoryLL;
+            mainCategoryTree.mergeLinkedListToTree(categoryLL);    
+        }
+    }
+    return allCategories;
+}
+
+/**
+ * getProductVariationAttributesFromProduct - get variants of product
+ * @param : product
+ */
+function getProductVariationAttributesFromProduct(product) {
+	var data = [];
+	if(product){
+	    var pvm = product.variationModel;
+	    var attributeDefinitions = pvm.getProductVariationAttributes();
+	    if (attributeDefinitions.length>0) {
+	        for (var idx=0;idx<attributeDefinitions.length;idx++) {
+	            currentAttr = attributeDefinitions[idx];
+	            var selectedValue= pvm.getSelectedValue(currentAttr);
+	            data.push({
+	                name : currentAttr.displayName,
+	                ID : currentAttr.ID,
+	                value : selectedValue ? selectedValue.value : "",
+	                displayValue : selectedValue ? selectedValue.displayValue : ""
+	            });
+	        }
+	    }
+	}
+    return data;
+}
+
+/**
+ * getCategoryReversedLinkedListFromCategory - reverse product category linked list to start from parent at root down to child which will point to null
+ * @param : category
+ * @param : child
+ */
+function getCategoryReversedLinkedListFromCategory(category, child) {
+    if (category==null) {
+        return assignDepthToLinkedList(child, 0);
+    } else {
+        var tree ={};
+        tree.ID = category.ID;
+        tree.name = category.displayName;
+        tree.child = child;
+        return getCategoryReversedLinkedListFromCategory(category.parent, tree);
+    }
+}
+
+/**
+ * assignDepthToLinkedList - Assign depth field to each node object on the list
+ * @param : lList
+ * @param : depth
+ */
+function assignDepthToLinkedList(lList, depth){
+    if (lList==null) {
+        return null;
+    } else {
+        lList.depth = depth;
+        lList.child = assignDepthToLinkedList(lList.child, depth+1);
+        return lList;
+
+    }
+}
+
+/**
+ * isCategoryAllowed - check if category is allowed
+ * @param : lList
+ * @param : isAllowed
+ */
+function isCategoryAllowed(lList, isAllowed) {
+    if (empty(isAllowed)) {
+        isAllowed =true; // set to true if null
+    }
+    if (lList==null ) {
+        return isAllowed;
+    } else {
+        for (var idx = 0; idx<hiddenCategories.length; idx++) { 
+            if (lList.ID == hiddenCategories[idx]) { //check if current category ID is present in the black listed category List
+                //if yes it will not be assigned to the product object because we are setting is allowed to false
+                isAllowed &= false; 
+                return isAllowed;
+            } else {
+                isAllowed &= true;
+            }
+        }
+        return isCategoryAllowed(lList.child, isAllowed);
+    }
+}
+
+/**
+ * category node object
+ * @param : obj
+ * @param : parent
+ */
+var Node = function(obj,parent) {
+    this.name = obj.name;
+    this.ID = obj.ID;
+    this.depth = obj.depth;
+    this.children= {};
+    this.parent = (parent ? parent : null);
+    return this;
+};
+
+/**
+ * addChild - add child category to category node
+ * @param : obj
+ */
+Node.prototype.addChild = function(obj) {
+    if (obj == null) {
+        return;
+    }
+    if (this.ID == obj.ID && this.depth== obj.depth) {
+        return this.addChild(obj.child);
+    }else if (this.children[obj.ID] && this.children[obj.ID].depth == obj.depth) {
+        return this.children[obj.ID].addChild(obj.child);
+    }else if (!this.children[obj.ID] && this.depth == obj.depth-1) {
+        this.children[obj.ID] = new Node(obj, {name : this.name, ID : this.ID});
+        return this.children[obj.ID].addChild(obj.child);
+    } else {
+    }
+};
+
+/**
+ * getChildren - get children of category node
+ * @param : obj
+ */
+Node.prototype.getChildren = function(Obj) {
+    return this.children;
+};
+
+/**
+ * category tree object
+ * @param : insertNode
+ */
+var CategoryTree = function(insertNode) {
+    if (insertNode instanceof Node) {
+        this.root = insertNode;
+    } else {
+        this.root = new Node(insertNode);
+    }
+    return this;
+};
+
+/**
+ * mergeLinkedListToTree - merge single category linked list to existing tree
+ * @param : list
+ */
+CategoryTree.prototype.mergeLinkedListToTree = function(list){
+    if (this.root.ID == null) {
+        this.root = new Node(list);
+    }
+    this.root.addChild(list);
+};
+
+
+var mainCategoryTree = new CategoryTree({ID : null});
+
+module.exports = {
+    filterOrdersForProductsSoldReport : filterOrdersForProductsSoldReport
+};

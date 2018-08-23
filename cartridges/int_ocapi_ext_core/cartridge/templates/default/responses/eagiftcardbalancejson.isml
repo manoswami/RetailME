@@ -1,0 +1,10 @@
+<iscontent type="application/json" />
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+{
+    "httpStatus" : 200, 
+    "currency" : "${pdict.GiftCertificate.balance.currencyCode}",
+    "balance_available" : "${pdict.GiftCertificate.balance.available}",
+    "gift_card_balance" : ${pdict.GiftCertificate.balance.valueOrNull},
+    "masked_gift_card_code" : "${pdict.GiftCertificate.maskedGiftCertificateCode}" 
+}

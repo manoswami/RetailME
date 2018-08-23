@@ -1,0 +1,31 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Extract the payment method
+*
+*  @input PaymentMethodFull : String 
+*  @output PaymentMethod : String 
+*
+*/
+importPackage(dw.system);
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = extractPaymentMethod(args.PaymentMethodFull);
+    if (result.PaymentMethod) {
+        args.PaymentMethod = result.PaymentMethod;
+        return PIPELET_NEXT;
+    }
+    return PIPELET_NEXT;
+}
+
+/**
+ * extractPaymentMethod - extract the payment method
+ * @param : paymentMethodFull
+ */ 
+function extractPaymentMethod(paymentMethodFull){
+    return {PaymentMethod : paymentMethodFull.split(" ")[0]};
+}
+
+module.exports = {
+    extractPaymentMethod : extractPaymentMethod
+};

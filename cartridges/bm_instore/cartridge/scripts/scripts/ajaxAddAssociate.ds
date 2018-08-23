@@ -1,0 +1,94 @@
+/**
+* ©2015-2018 salesforce.com, inc. All rights reserved.
+*
+* ajaxAddAssociate.ds - creates or edit an associate (represented as a JSON string) to a store's custom object with ajax call
+* and return an html table off all the existing
+*
+*   @input CurrentStoreId : String
+*   @input AssociateId : String
+*   @input FirstName: String
+*   @input LastName : String
+*   @input Permissions : String
+*   @input Password : String
+*   @input employeeIds : Object
+*
+*   @output ErrorStatus : String
+*   @output allAssociates : Object
+*   @output allPermissions : Object
+*   @output createdAssociateId : String
+*   @output employeeIdsArray : Object
+*
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.crypto );
+importPackage( dw.util );
+importPackage( dw.web );
+importScript("util/utils.ds");
+
+function execute( args : PipelineDictionary ) : Number
+{
+    var currentStoreId : String = args.CurrentStoreId;
+    var associateId : String = "A" + StringUtils.trim(args.AssociateId);
+    var firstname : String = args.FirstName;
+    var lastname : String = args.LastName;
+    var permissions : String = args.Permissions;
+    var password : String = args.Password;
+    var loginAttempts : Number = 0;
+    var isLocked : Boolean = false;
+    var employeeIds :Array = (args.employeeIds?args.employeeIds:[]);
+    var storeEmployees : String = '';
+
+
+
+    if (empty(associateId) || empty(firstname) || empty(lastname) || empty(permissions) || empty(password)) {
+        Logger.error("ajaxAddAssociate: missing required input");
+        args.ErrorStatus = Resource.msg('ajaxAddAssoc.missingReqInput', 'strings', null);
+        return PIPELET_ERROR;
+    }
+
+    var salt = randomString(64);
+    var hashedCode = encrypt(password, salt);
+
+
+    // check to see if associate already exists in big employee list
+    var employeeCO : dw.object.CustomObject = CustomObjectMgr.getCustomObject("associates", associateId);
+    if (empty(employeeCO)) {
+        // create a new CO for the employee
+        employeeCO = CustomObjectMgr.createCustomObject("associates", associateId);
+        employeeCO.custom.firstName = firstname;
+        employeeCO.custom.lastName = lastname;
+        employeeCO.custom.permissionGroupId = permissions;
+        employeeCO.custom.hashedCode = hashedCode;
+        employeeCO.custom.salt = salt;
+        employeeCO.custom.loginAttempts = loginAttempts;
+        employeeCO.custom.isLocked = isLocked;
+    }else{
+        args.ErrorStatus =  Resource.msg('ajaxAddAssoc.AssociateAlreadyExist', 'strings', null) ;
+        return PIPELET_ERROR;
+    }
+    if(currentStoreId){
+        try{
+            var storeObj : CustomObject = CustomObjectMgr.getCustomObject("storeAssociates", currentStoreId);
+            storeEmployees= storeObj.custom.associateIDs?storeObj.custom.associateIDs:"";
+        }catch(e){
+            Logger.error("ajaxAddAssociate: Cannot find custom object for store"+" " + currentStoreId + " (" + e + ")");
+            args.ErrorStatus = Resource.msgf('ajaxAddAssoc.objMissingError', 'strings', null, currentStoreId, e);
+            return PIPELET_ERROR;
+        }
+    }
+
+    try {
+
+        args.allPermissions  = CustomObjectMgr.getAllCustomObjects("permissionGroup").asList();
+        args.allAssociates = CustomObjectMgr.getAllCustomObjects("associates");
+        args.createdAssociateId = associateId;
+        args.employeeIdsArray = employeeIds;
+
+    } catch (e) {
+        Logger.error(" (" + e + ")");
+        args.ErrorStatus = " (" + e + ")";
+        return PIPELET_ERROR;
+    }
+    return PIPELET_NEXT;
+}

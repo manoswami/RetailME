@@ -1,0 +1,67 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Outputs the error status
+*
+*  @input Authorized : Boolean Authorization Failed.
+*  @input LoginStatus : Boolean Store login failed.
+*  @input BadParams : Boolean Bad URL Parameters.
+*  @input MissingPermissions: Boolean Missing Permissions
+*  @input Locked: Boolean Locked
+*  @output output : String
+*
+*/
+importPackage( dw.system );
+importScript("api/EAStatus.ds");
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = getLoginStatus(
+        args.BadParams,
+        args.Locked,
+        args.MissingPermissions,
+        args.Authorized,
+        args.LoginStatus);
+    args.output = result.output;
+    return PIPELET_NEXT;
+}
+
+/**
+ * getLoginStatus - check if the user's login status if not allowed to log in
+ * @param badParams
+ * @param locked
+ * @param missingPermissions
+ * @param authorized
+ * @param loginStatus
+ */
+function getLoginStatus(badParams, locked, missingPermissions, authorized, loginStatus) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("getLoginStatus: entering script");
+
+    var eaStatus = new EAStatus();
+    var output ={};
+    if (badParams) {
+        eaStatus.findMessage("EA_EMP_AUTH_4000");
+        output = eaStatus.stringify();
+    } else if (locked) {
+        eaStatus.findMessage("EA_EMP_AUTH_4003");
+        output = eaStatus.stringify();
+    } else if (missingPermissions) {
+        eaStatus.findMessage("EA_EMP_AUTH_4005");
+        output = eaStatus.stringify();
+    } else if (!authorized) {
+        eaStatus.findMessage("EA_EMP_AUTH_4002");
+        output = eaStatus.stringify();    
+    } else if (!loginStatus) {
+        eaStatus.findMessage("EA_EMP_AUTH_4001");
+        output = eaStatus.stringify();
+    } else {
+        eaStatus.findMessage("EA_EMP_AUTH_4041");
+        output = eaStatus.stringify();
+    }
+    log.info("getLoginStatus: exiting script with status: " + output);
+    return {output : output};
+}
+
+module.exports = {
+    getLoginStatus : getLoginStatus
+};

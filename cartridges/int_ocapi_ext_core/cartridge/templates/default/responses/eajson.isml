@@ -1,0 +1,5 @@
+<iscontent type="application/json" charset="UTF-8"/>
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<isif condition="${pdict.JSONResponse}"><isprint value="${JSON.stringify(pdict.JSONResponse, null, '\t')}" encoding="off"/></isif>
+<isprint value="${pdict.errorJson || ''}" encoding="off"/>

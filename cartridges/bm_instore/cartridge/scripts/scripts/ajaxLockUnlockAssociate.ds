@@ -1,0 +1,52 @@
+/**
+* ©2015-2018 salesforce.com, inc. All rights reserved.
+*
+* ajaxLockUnlockAssociates - - edit an associate's permission (represented as a JSON string) to a store's custom object with ajax call
+*
+*    @input AssociateId : String
+*    @input LockedOut : String
+*
+*    @output ErrorStatus : String
+*    @output LockUnlockedJSONResponse : String
+*
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.web );
+
+function execute( args : PipelineDictionary ) : Number
+{    
+    var associateId : String = args.AssociateId;
+    var isLocked : Boolean = JSON.parse(args.LockedOut);
+    if (empty(associateId) || empty(isLocked)) {
+        Logger.error('ajaxLockUnlockAssociates: missing required input Associate ID or Locked Out Flag');
+        args.ErrorStatus = Resource.msg('ajaxLockUnlock.missingReqInput', 'strings', null);
+        return PIPELET_ERROR;
+    }
+    try{
+        // check to see if associate already exists in big employee list
+        var employeeCO : dw.object.CustomObject = CustomObjectMgr.getCustomObject("associates", associateId);
+        if(!empty(employeeCO)){
+            employeeCO.custom.isLocked = isLocked;
+            if(!isLocked){
+                employeeCO.custom.loginAttempts = 0;
+            }
+            args.LockUnlockedJSONResponse =JSON.stringify({
+                success:true,
+                message:(isLocked ? Resource.msgf('ajaxLockUnlock.lockedOut', 'strings', null, associateId.substr(1)) : Resource.msgf('ajaxLockUnlock.unlocked', 'strings', null, associateId.substr(1)))
+            });
+        }else{
+            args.LockUnlockedJSONResponse = JSON.stringify({
+                success:false,
+                message:Resource.msgf('ajaxLockUnlock.JSONRespFail', 'strings', null,associateId.substr(1))
+            });
+        }
+        
+    }catch(e){
+        Logger.error("ajaxLockUnlockAssociates:  Cannot update custom object for Associate"+" " + associateId + " (" + e + ")");
+        args.ErrorStatus = Resource.msgf('ajaxLockUnlock.objUpdateError', 'strings', null, associateId, e);
+        return PIPELET_ERROR;
+    }
+
+   return PIPELET_NEXT;
+}

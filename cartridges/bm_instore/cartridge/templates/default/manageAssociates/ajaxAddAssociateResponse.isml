@@ -1,0 +1,61 @@
+<iscomment>©2017-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<div id="existingAssociates">
+    <table id="existingAssociatesTable" class="display" >
+        <thead>
+            <tr>
+                <th align="left">
+                    ${Resource.msg('addassociate.table.select', 'strings', null)}
+                </th>
+                <th align="left" style="display:none">
+                    ${Resource.msg('addassociate.table.creationDate', 'strings', null)}
+                </th>
+                <th align="left">
+                    ${Resource.msg('addassociate.table.employeeId', 'strings', null)}
+                </th>
+                <th align="left">
+                    ${Resource.msg('addassociate.table.firstName', 'strings', null)}
+                </th>
+                <th align="left">
+                    ${Resource.msg('addassociate.table.lastName', 'strings', null)}
+                </th>
+                <th align="left">
+                    ${Resource.msg('addassociate.table.permissions', 'strings', null)}
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            <isloop items="${pdict.allAssociates}" var="associate" status="assocLoop">
+                <isscript>
+                    var isSelectedRow = (pdict.employeeIdsArray.indexOf(associate.custom.employeeId) > -1 || associate.custom.employeeId == pdict.createdAssociateId);
+                </isscript>
+                <tr class="${(isSelectedRow?'selectedRow':'')}">
+                    <td>
+                        <input type="checkbox" class="associateSelect"  value="${associate.custom.employeeId}" ${(isSelectedRow? 'checked' : '')}  >
+                    </td>
+                    <td style="display:none">
+                        ${Date.parse(associate.creationDate)}
+                    </td>
+                    <td>
+                        ${associate.custom.employeeId.trim().substring(1)}
+                    </td>
+                    <td>
+                        ${associate.custom.firstName}
+                    </td>
+                    <td>
+                        ${associate.custom.lastName}
+                    </td>
+                    <td>
+                        <select class="associatePermissions">
+                            <isloop items="${pdict.allPermissions}" var="permission" status="permLoop">
+                                <option value="${permission.custom.permissionGroupId}" ${permission.custom.permissionGroupId == associate.custom.permissionGroupId? 'selected' :''}>
+                                    &nbsp;${permission.custom.permissionGroupName}&nbsp;(${permission.custom.permissionGroupId})&nbsp;
+                                </option>
+                            </isloop>
+                        </select>
+                    </td>
+                </tr>
+            </isloop>
+        </tbody>
+    </table>
+</div>

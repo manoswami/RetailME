@@ -1,0 +1,27 @@
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+<isloop items="${pdict.countryname}" var="country" status="loopstate">
+    <isif condition="${country.value}">
+        {
+            <isset name="countryCode" value="${country.value}" scope="page"/>
+            "<isprint value="${countryCode}"/>" : "<isprint value="${Resource.msg(country.label,'forms',null)}" encoding="off"/>"
+            <isif condition="${countryCode == 'US' && !empty(pdict.CurrentForms.states.stateUS.options)}">
+                ,<isset name="formName" value="${pdict.CurrentForms.states.stateUS.options}" scope="page"/>
+            <iselseif condition="${countryCode == 'CA' && !empty(pdict.CurrentForms.states.stateCA.options)}">
+                ,<isset name="formName" value="${pdict.CurrentForms.states.stateCA.options}" scope="page"/>
+            <iselse>
+                <isset name="formName" value="" scope="page"/>
+            </isif>    
+            <isif condition="${!empty(formName)}"/>
+                "states" : [
+                    <isloop items="${formName}" var="state" status="loopstate2">
+                        <isif condition="${state.value}">
+                            {
+                                "<isprint value="${state.value}"/>" : "<isprint value="${Resource.msg(state.label,'forms',null)}" encoding="off"/>"
+                            }<isif condition="${!(loopstate2.last)}">,</isif>
+                        </isif>
+                    </isloop>
+                ]
+            </isif>
+        }<isif condition="${!(loopstate.last)}">,</isif>
+    </isif>
+</isloop>

@@ -1,0 +1,156 @@
+/**
+* ©2016-2018 salesforce.com, inc. All rights reserved.
+*
+*  Create json ready collection of order objects to be sent to client side of the app
+*
+*   @input filteredOrders : Object
+*   @input CurrentHttpParameterMap : Object
+*   @output orderData : Object
+*   @output localizedStrings : Object
+*
+*/
+
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.util );
+importPackage( dw.order );
+importPackage( dw.web );
+var EASalesReportUtils = require('int_ocapi_ext_core/cartridge/scripts/util/EASalesReportUtils.ds');
+var EAStatus = require('int_ocapi_ext_core/cartridge/scripts/api/EAStatus.ds');
+var GetFormattedAmount = require('int_ocapi_ext_core/cartridge/scripts/actions/GetFormattedAmount');
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = filterOrdersForQuickStats(args.CurrentHttpParameterMap,args.filteredOrders);
+    if (result.ErrorMessage) {
+        args.ErrorMessage = result.ErrorMessage;
+        return PIPELET_ERROR;
+    } else {
+        args.orderData = JSON.stringify(result.orderData,null, '\t');
+        args.localizedStrings = JSON.stringify(result.localizedStrings,null, '\t');
+        return PIPELET_NEXT;
+    }
+}
+
+/**
+ * filterOrdersForQuickStats - filters quick stats data for orders
+ * @param : CurrentHttpParameterMap
+ * @param : filteredOrders
+ */ 
+function filterOrdersForQuickStats(CurrentHttpParameterMap,filteredOrders){
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("filterOrdersForQuickStats: entering script");
+
+    var result ={};
+    try {
+        var parsedOrderData  = EASalesReportUtils.parseOrders(filteredOrders);
+        var orderData = {
+            httpStatus : 200,
+            orders : parsedOrderData.data,
+            quickStats : generatQuickStats(parsedOrderData),
+            storeEmployees : (CurrentHttpParameterMap.loadEmployeeList.booleanValue === true ? EASalesReportUtils.getAllAssociatesFromStore(CurrentHttpParameterMap.storeId.stringValue) : [])
+        };
+        var localizedStrings = EASalesReportUtils.getAllSalesReportslocalizedStrings();
+        result = {
+            orderData : orderData,
+            localizedStrings : localizedStrings
+        };
+        log.info("filterOrdersForQuickStats: extracted order data ");
+    } catch(ex) {
+        result = {ErrorMessage : ex.stringify()};
+    }
+    return result;
+}
+
+//generate quick stats data
+function generatQuickStats(parsedOrder){
+    var quickStatsConfig = {
+        totalSold : true,
+        totalOverride : true,
+        totalShippingOverride : true,
+        totalAdjustment : false,
+        averageBasket : true,
+        totalItemsSold : true
+    };
+    var quickStats = [];
+    if (quickStatsConfig.totalSold) {
+        genTotalSoldStatusStat(parsedOrder).forEach(function(stat){
+            quickStats.push(stat);
+        });
+    }
+    if (quickStatsConfig.totalItemsSold) {
+        genTotalItemsSoldStat(parsedOrder).forEach(function(stat){
+            quickStats.push(stat);
+        });
+    }
+    if (quickStatsConfig.totalOverride) {
+        genTotalOverrideStat(parsedOrder).forEach(function(stat){
+            quickStats.push(stat);
+        });
+    }
+    if (quickStatsConfig.totalShippingOverride) {
+        genTotalShippingOverrideStat(parsedOrder).forEach(function(stat){
+            quickStats.push(stat);
+        });
+    }
+    if (quickStatsConfig.totalAdjustment) {
+        genTotalAdjustmentStat(parsedOrder).forEach(function(stat){
+            quickStats.push(stat);
+        });
+    }
+    if (quickStatsConfig.averageBasket) {
+        genAverageBasketStat(parsedOrder).forEach(function(stat){
+            quickStats.push(stat);
+        });
+    }
+    return quickStats;
+}
+
+function genTotalSoldStatusStat(parsedOrder){
+    var currencyCode = request.httpParameterMap.currencySymbol !='' ? request.httpParameterMap.currencySymbol : session.getCurrency().getSymbol();
+    return [{'value':parsedOrder.data.length,
+            'title':Resource.msg('salesReport.quickStats.totalOrder', 'reports', null)},
+            {'value':GetFormattedAmount.getFormattedAmount(request.httpParameterMap.currencyFormat.stringValue, request.httpParameterMap.currencyLocale.stringValue, request.httpParameterMap.thousands.stringValue, request.httpParameterMap.decimal.stringValue, parsedOrder.totalAmountSold),
+            'title':Resource.msg('salesReport.quickStats.totalAmountsold', 'reports', null)}];
+}
+function genTotalOverrideStat(parsedOrder){
+    var currencyCode = request.httpParameterMap.currencySymbol !='' ? request.httpParameterMap.currencySymbol : session.getCurrency().getSymbol();
+    var totalOverrideObj =EASalesReportUtils.getTotalOverrideObj(parsedOrder.data);
+    return [{'value':GetFormattedAmount.getFormattedAmount(request.httpParameterMap.currencyFormat.stringValue, request.httpParameterMap.currencyLocale.stringValue, request.httpParameterMap.thousands.stringValue, request.httpParameterMap.decimal.stringValue, totalOverrideObj.amount),
+            'title':Resource.msg('salesReport.quickStats.totalProductOverride', 'reports', null)},
+            {'value':totalOverrideObj.count,
+            'title':Resource.msg('salesReport.quickStats.totalNumberProductOverride', 'reports', null)}];
+    
+}
+function genTotalShippingOverrideStat(parsedOrder){
+    var currencyCode = request.httpParameterMap.currencySymbol !='' ? request.httpParameterMap.currencySymbol : session.getCurrency().getSymbol();
+    var totalShippingOverrideObj = EASalesReportUtils.getTotalShippingOverrideObj(parsedOrder.data);
+    var totalShippingAmount = GetFormattedAmount.getFormattedAmount(request.httpParameterMap.currencyFormat.stringValue, request.httpParameterMap.currencyLocale.stringValue, request.httpParameterMap.thousands.stringValue, request.httpParameterMap.decimal.stringValue, totalShippingOverrideObj.amount);
+    return [{'value':totalShippingAmount,
+            'title':Resource.msg('salesReport.quickStats.totalShippingOverride', 'reports', null)},
+            {'value':totalShippingOverrideObj.count,
+            'title':Resource.msg('salesReport.quickStats.totalNumberShippingOverride', 'reports', null)}];
+    
+}
+function genAverageBasketStat(parsedOrder){
+    var currencyCode = request.httpParameterMap.currencySymbol !='' ? request.httpParameterMap.currencySymbol : session.getCurrency().getSymbol();
+    var averageBasketAmountAndSize=  EASalesReportUtils.getAverageBasketAmountAndSize(parsedOrder.data);
+    return [{'value':GetFormattedAmount.getFormattedAmount(request.httpParameterMap.currencyFormat.stringValue, request.httpParameterMap.currencyLocale.stringValue, request.httpParameterMap.thousands.stringValue, request.httpParameterMap.decimal.stringValue, averageBasketAmountAndSize.amount),
+             'title':Resource.msg('salesReport.quickStats.averageBasketAmount', 'reports', null)},
+            {'value':averageBasketAmountAndSize.size,
+             'title':Resource.msg('salesReport.quickStats.averageBasketAmountCount', 'reports', null)}];
+}
+function genTotalAdjustmentStat(parsedOrder){
+    var currencyCode = request.httpParameterMap.currencySymbol !='' ? request.httpParameterMap.currencySymbol : session.getCurrency().getSymbol();
+    return [{'value':parsedOrder.totalAdjustments,
+            'title':Resource.msg('salesReport.quickStats.totalAdjustmentCount', 'reports', null)},
+            {'value':GetFormattedAmount.getFormattedAmount(request.httpParameterMap.currencyFormat.stringValue, request.httpParameterMap.currencyLocale.stringValue, request.httpParameterMap.thousands.stringValue, request.httpParameterMap.decimal.stringValue, parsedOrder.totalAdjustmentsAmount),
+                'title':Resource.msg('salesReport.quickStats.totalAdjustment', 'reports', null)}];
+}
+function genTotalItemsSoldStat(parsedOrder){
+    return [{'value':EASalesReportUtils.getTotalItemsSold(parsedOrder.data),
+            'title':Resource.msg('salesReport.quickStats.totalItemsSold', 'reports', null)}];
+}
+
+module.exports = {
+    filterOrdersForQuickStats : filterOrdersForQuickStats
+};

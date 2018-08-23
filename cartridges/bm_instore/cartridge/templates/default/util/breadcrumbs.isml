@@ -1,0 +1,50 @@
+<iscontent type="text/html" charset="UTF-8" compact="true"/>
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<iscomment>
+    This template renders a static breadcrumb navigation. The template
+    can be called with two optional breadcrumb steps. Each breadcrumb
+    step consists of two value, one for the display text and one
+    for the URL to call.
+</iscomment>
+
+<div class="breadcrumb">
+    <iscomment>HOME BREADCRUMB</iscomment>
+    <a class="breadcrumb-element" href="${URLUtils.url('ViewApplication-CompressMenuGroup','OverviewPage','SiteNavigationBar-ShowSiteOverview') }" title="${Resource.msg('breadcrumb.merchantTools','strings',null)}">${Resource.msg('breadcrumb.merchantTools','strings',null)}</a></li>
+
+    <iscomment>FIRST BREADCRUMB</iscomment>
+    <isif condition="${pdict.bctext1 != null}">
+        <isif condition="${pdict.bcurl1 != null}">
+            &nbsp>&nbsp
+            <a class="breadcrumb-element" <isif condition="${pdict.bcurl1 != null}">href="${pdict.bcurl1}"</isif> title="${pdict.bctext1}">
+                ${pdict.bctext1}
+            </a>
+        <iselse>
+            &nbsp>&nbsp${pdict.bctext1}
+        </isif>
+    </isif>
+
+    <iscomment>SECOND BREADCRUMB</iscomment>
+    <isif condition="${pdict.bctext2 != null}">
+        <isif condition="${pdict.bcurl2 != null}"> 
+            &nbsp>&nbsp
+            <a class="breadcrumb-element" <isif condition="${pdict.bcurl2 != null}">href="${pdict.bcurl2}"</isif> title="${pdict.bctext2}">
+                ${pdict.bctext2}
+            </a>
+        <iselse>
+            &nbsp>&nbsp${pdict.bctext2}
+        </isif>
+    </isif>
+
+    <iscomment>THIRD BREADCRUMB</iscomment>
+    <isif condition="${pdict.bctext3 != null}">
+        <isif condition="${pdict.bcurl3 != null}"> 
+            &nbsp>&nbsp
+            <a class="breadcrumb-element" <isif condition="${pdict.bcurl3 != null}">href="${pdict.bcurl3}"</isif> title="${pdict.bctext3}">
+                ${pdict.bctext3}
+            </a>
+        <iselse>
+            &nbsp>&nbsp${pdict.bctext3}
+        </isif>
+    </isif>
+</div>

@@ -1,0 +1,23 @@
+<iscontent type="application/json" charset="UTF-8" compact="true"/>
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+{
+    "httpStatus" : 200,
+    "customerAddress" : {
+        "countries" : [
+            <isset name="countryname" value="${pdict.CurrentForms.customeraddress.country.options}" scope="pdict" />
+            <isinclude template="responses/countries" />
+        ]
+    },
+    "billingAddress" : {
+        "countries" : [
+            <isset name="countryname" value="${pdict.CurrentForms.billingaddress.country.options}" scope="pdict" />
+            <isinclude template="responses/countries" />
+        ]
+    },
+    "shippingAddress" : {
+        "countries" : [
+            <isset name="countryname" value="${pdict.CurrentForms.shippingaddress.country.options}" scope="pdict" />
+            <isinclude template="responses/countries" />
+        ]
+    }
+}

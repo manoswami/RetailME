@@ -1,0 +1,40 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Constructs the object to return to EA with card declined information from payment provider
+*
+*  @input AuthorizationReasonCode : Number
+*  @input Decision : String
+*  @input Order : dw.order.Order
+*  @output JSONResponse : Object
+*
+*/
+importPackage( dw.system );
+importPackage( dw.order );
+importPackage( dw.util );
+
+function execute( args : PipelineDictionary ) : Number {
+    var order : Order = args.Order;
+    var reasonCodeString = args.AuthorizationReasonCode ? args.AuthorizationReasonCode.toString() : null;
+    
+    if (order) {
+        order.addNote(dw.web.Resource.msg('paymentdeclined.title','handledeclinedcard', null),
+                      dw.web.Resource.msg(reasonCodeString ? 'paymentdeclined.detailnote' : 'paymentdeclined.note','handledeclinedcard', null) + (reasonCodeString ? reasonCodeString : ''));
+    }
+    
+    args.JSONResponse = {
+        'httpStatus' : 400,
+        'fault' : {
+            'reasonCode' : args.AuthorizationReasonCode ? args.AuthorizationReasonCode.toString() : null,
+            'decision' : args.Decision,
+            'type' : 'DeclinedCardError',
+            'message' : '',
+            'description' : dw.web.Resource.msg('paymentdeclined.note','handledeclinedcard', null)
+        }
+    };
+    return PIPELET_NEXT;
+}
+
+module.exports = {
+    execute : execute
+};

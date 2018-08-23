@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<preferences xmlns="http://www.demandware.com/xml/impex/preferences/2007-03-31">
+    <custom-preferences>
+        <all-instances>
+            <preference preference-id="eaCreditCardPaymentMethod">EA_Credit_Card</preference>
+            <preference preference-id="eaCreditCardPaymentProcessor">EACreditCard</preference>
+            <preference preference-id="eaEmailIgnore">
+                <value>InvalidCouponItemException</value>
+                <value>PasswordNotValidForReuseException</value>
+                <value>PasswordPolicyViolationException</value>
+                <value>InvalidPasswordException</value>
+                <value>CouponAlreadyRedeemedException</value>
+                <value>InvalidStoreCredentialException</value>
+                <value>InvalidAssociateCredentialsException</value>
+                <value>UsernameAlreadyInUseException</value>
+                <value>InvalidGiftCardException</value>
+                <value>TooManyResultsException</value>
+                <value>AddressVerificationError</value>
+                <value>DeclinedCardError</value>
+            </preference>
+            <preference preference-id="eaProductOverrideReasons">
+                <value>DisplayProduct</value>
+                <value>ProductNotInStock</value>
+                <value>DamagedProduct</value>
+            </preference>
+            <preference preference-id="eaRetryErrorCodes">
+                <value>54</value>
+                <value>-1001</value>
+                <value>-1005</value>
+            </preference>
+            <preference preference-id="eaShippingOverrideReasons">
+                <value>ProductNotInStock</value>
+                <value>DamagedProduct</value>
+            </preference>
+             <preference preference-id="eaShipToStoreFreeShippingMethodIds">
+                <value>001</value>
+            </preference>
+            <preference preference-id="eaCountryConfiguration">
+                <value>{"US": {"displayName": "United States", "currencySymbol": "$", "list_price_book": "usd-list-prices","sale_price_book": "usd-sale-prices"}}</value>
+            </preference>
+        </all-instances>
+        <development/>
+        <staging/>
+        <production/>
+    </custom-preferences>
+</preferences>

@@ -1,0 +1,32 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+*     Map a unique token to an order
+*
+*  @input token : String
+*  @input orderNo: String 
+*
+*/
+
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.util );
+
+function execute( args : PipelineDictionary ) : Number {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("mapTokenToOrder: entering script");
+    var token : String = args.token;
+    
+    var obj : dw.object.CustomObject  = CustomObjectMgr.getCustomObject("webOrder", token); 
+    if (empty(obj)) {
+        obj =  CustomObjectMgr.createCustomObject("webOrder", token);
+        obj.custom.orderNo = args.orderNo;
+    }
+
+    log.info("mapTokenToOrder: exiting script");
+       return PIPELET_NEXT;
+}
+
+module.exports = {
+    execute : execute
+};

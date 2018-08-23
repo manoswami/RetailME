@@ -1,0 +1,48 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Wrapper to get Store details
+*
+*  @output JSONResponse : Object 
+*
+*/
+
+importPackage( dw.system );
+
+importScript("int_ocapi_ext_core:api/services/StoreCredentialsCO.ds");
+importScript("int_ocapi_ext_core:api/EAStatus.ds");
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = getStores();
+    if (!result.ErrorMessage) {
+        args.JSONResponse = result.JSONResponse;
+        return PIPELET_NEXT;
+    } else {
+        return PIPELET_ERROR;
+    }
+}
+
+/**
+ * getStores - returns the stores for a particular site
+ */
+function getStores() {
+    var result = {};
+    try {
+        var log : Log = Logger.getLogger("instore-audit-trail");
+        log.info("GetStores: entering script");
+    
+        var storeCredentials = new StoreCredentials();
+        var JSONResponse = storeCredentials.getStoreIDs();
+        log.info('response ' + JSON.stringify(JSONResponse));
+        result = {JSONResponse : JSONResponse};
+        log.info("GetStores: exiting script without error");
+    } catch(ex) {
+        var ErrorMessage = ex.stringify();
+        result = {ErrorMessage : ErrorMessage};
+    }
+    return result;
+}
+
+module.exports = {
+    getStores : getStores
+};

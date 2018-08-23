@@ -1,0 +1,9 @@
+<iscontent type="application/json" />
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+{
+    "status" : "400",
+    "fault" : {
+        "type" : "InvalidMethodException",
+        "message" : "Invalid method for the API call"
+    }
+}

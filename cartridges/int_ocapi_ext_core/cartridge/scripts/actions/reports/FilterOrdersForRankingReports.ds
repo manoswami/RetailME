@@ -1,0 +1,65 @@
+/**
+* ©2016-2018 salesforce.com, inc. All rights reserved.
+*
+*  Create json ready collection of order objects to be sent to client side of the app
+*
+* 
+*   @input filteredOrders : Object
+*   @output orderData : Object
+*   @output localizedStrings : Object
+*
+*/
+
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.util );
+importPackage( dw.order );
+importPackage( dw.web );
+importScript("util/EASalesReportUtils.ds");
+importScript("api/EAStatus.ds");
+
+function execute(args : PipelineDictionary ) : Number {
+    var result = filterOrderForRanking(args.filteredOrders);
+    if (result.ErrorMessage) {
+        return PIPELET_ERROR;
+    }
+    else{
+        args.orderData = result.orderData;
+        args.orderData.storeEmployees = getAllAssociatesFromStore(args.CurrentHttpParameterMap.storeId.stringValue);
+        args.orderData = JSON.stringify(args.orderData,null, '\t');
+        args.localizedStrings = JSON.stringify(result.localizedStrings,null, '\t');
+        return PIPELET_NEXT;
+    }
+}
+
+/**
+ * filterOrdersForProductsSoldReport - filters associate data for orders
+ * @param : filteredOrders
+ */ 
+function filterOrderForRanking(filteredOrders){
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("filterOrderForRanking: entering script");
+    var result = {};
+    try{
+        var parsedOrderData  = parseOrders(filteredOrders);
+        var orderData = {
+            httpStatus : 200,
+            orders : parsedOrderData.data
+        };
+        var localizedStrings = getAllSalesReportslocalizedStrings();
+        log.info("filterOrderForRanking: extracted order data ");
+        result = {
+            orderData : orderData,
+            localizedStrings : localizedStrings
+        };
+    } catch(ex) {
+        var ErrorMessage = ex.stringify();
+        result = {ErrorMessage : ErrorMessage};
+    }
+
+   return result;
+}
+
+module.exports = {
+    filterOrderForRanking : filterOrderForRanking
+};

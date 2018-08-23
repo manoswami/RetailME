@@ -1,0 +1,29 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Removes Shipping line item to remove the previously set shipping method
+*
+*  @input Basket : dw.order.Basket
+*
+*/
+importPackage( dw.system );
+importPackage( dw.order );
+importPackage( dw.util );
+
+function execute( args : PipelineDictionary ) : Number {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("RemoveShippingLineItem: entering script");
+    var basket : Basket = args.Basket;
+    
+    var shipmentLineItemsItr : dw.util.Iterator = basket.defaultShipment.getShippingLineItems().iterator();
+    
+    //var shipment : dw.order.Shipment = basket.defaultShipment.; basket.shipments.iterator();
+
+    while (shipmentLineItemsItr.hasNext()) {
+        var shipmentLineItem : dw.order.ShippingLineItem = shipmentLineItemsItr.next();
+        var shipment : dw.order.Shipment = basket.defaultShipment;
+        shipment.removeShippingLineItem(shipmentLineItem);
+    }
+    log.info("RemoveShippingLineItem: exiting script");
+    return PIPELET_NEXT;
+}

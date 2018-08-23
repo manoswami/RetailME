@@ -1,0 +1,14 @@
+<iscontent type="application/json" />
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<isscript>
+    importScript("api/EAStatus.ds");
+    var eaStatus = new EAStatus();
+    if (empty(pdict.CreditCardStatus)) {
+        eaStatus.findMessage("CREDITCARD_PROCESSING_ERROR");
+    } else {
+        eaStatus.findMessage(pdict.CreditCardStatus.code);
+    }
+    outputStr = eaStatus.stringify();
+</isscript>
+<isprint value="${outputStr}" encoding="off"/>

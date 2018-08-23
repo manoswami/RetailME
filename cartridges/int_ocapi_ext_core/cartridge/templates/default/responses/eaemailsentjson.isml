@@ -1,0 +1,7 @@
+<iscontent type="application/json" />
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+{ 
+    "httpStatus" : 200,
+    "email_sent" : "true"
+}

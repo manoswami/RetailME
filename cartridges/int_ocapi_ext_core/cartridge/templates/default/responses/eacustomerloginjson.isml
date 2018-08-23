@@ -1,0 +1,36 @@
+<iscontent type="application/json" />
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+<isif condition="${!empty(pdict.Customer)}">
+    {
+    "httpStatus" : 200,
+
+    "customer_no" : "${pdict.Customer.profile.customerNo}",
+    "customer_id" : "${pdict.Customer.ID}",
+    "first_name" : "${pdict.Customer.profile.firstName}",
+    "last_name" : "${pdict.Customer.profile.lastName}",
+    "email" : "${pdict.Customer.profile.email}",
+    "phone_home" : "${pdict.Customer.profile.phoneHome}",
+    "last_visit_time" : "${pdict.Customer.profile.lastVisitTime}",
+    "last_login_time" : "${pdict.Customer.profile.lastLoginTime}",
+    "addresses" : [
+    <isloop items="${pdict.Customer.addressBook.addresses}" var="addressObj" status="loopstate">
+        {
+        <isif condition="${pdict.Customer.addressBook.preferredAddress}">
+            "default_address" : "${addressObj.ID == pdict.Customer.addressBook.preferredAddress.ID ? true : false}",
+        <iselse>
+            "default_address" : "false",
+        </isif>
+        "address_id" : "${addressObj.ID}",
+        "address1" : "${addressObj.address1}",
+        "address2" : "${addressObj.address2}",
+        "city" : "${addressObj.city}",
+        "state_code" : "${addressObj.stateCode}",
+        "postal_code" : "${addressObj.postalCode}",
+        "country_code" : "${addressObj.countryCode}"
+        }<isif condition="${!loopstate.last}">,</isif>
+    </isloop>
+    ]
+    }
+<iselse>
+    <isprint value="${pdict.output}" encoding="off"/>
+</isif>

@@ -1,0 +1,77 @@
+<iscontent type="text/html" charset="UTF-8"/>
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<isdecorate template="application/MenuFrame">
+<isinclude template="util/modules">
+
+<!-- Page Navigator -->
+<!-- 
+<isset name="TOP_URL"   value="${URLUtils.url('SiteNavigationBar-ShowMenuitemOverview', 'CurrentMenuItemId', pdict.CurrentMenuItemId)}" scope="PAGE">
+<isbreadcrumb name1="${pdict.mainmenuname}" url1="${TOP_URL}" name2="Manage Associates" name3="Add Associate">
+-->
+<!-- EO Page Navigator -->
+
+<!-- errors -->
+<isif condition="${!empty(pdict.ErrorStatus)}"> 
+    <table border="0" cellspacing="0" cellpadding="4" width="100%" class="error_box n s e w">
+        <tr valign="top">
+            <td class="error_icon top e"><img src="${URLUtils.webRoot()}/images/error.gif" width="16" height="15" alt="" border="0"/></td>
+            <td class="error top" width="100%">
+            <p>Error: <isprint value="${pdict.ErrorStatus}"><br/>
+            </td>
+        </tr>
+    </table>
+</isif>
+
+<!-- end errors-->
+
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <form action="${dw.web.URLUtils.continueURL()}" method="POST" name="add">
+        <input type="hidden" name="storeid" value="${pdict.StoreId}"/>
+        <input type="hidden" name="selectedStoreId" value="${pdict.CurrentHttpParameterMap.selectedStoreId.value?pdict.CurrentHttpParameterMap.selectedStoreId.value:''}"/>
+        
+        <tr>
+            <td width="100%" class="w e s table_title"><isprint value="${Resource.msg('changePermissions.title','strings',null)}"/> ${pdict.AssociateId}</td>
+        </tr>
+
+        <tr>
+            <td width="100%" class="w e s table_title_description">
+                <isprint value="${Resource.msg('changePermissions.description','strings',null)}"/>
+            </td>
+        </tr>
+
+        <tr><td class="w e s">
+        <table border="0" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="table_detail w e s"><isprint value="${Resource.msg('changePermissions.id','strings',null)}"/></td>
+                <td class="table_detail w e s"><isprint value="${pdict.AssociateId}"/></td>
+            </tr>
+            <tr>
+                <td class="table_detail w e s"><isprint value="${Resource.msg('changePermissions.permissionGroup','strings',null)}"/></td>
+                <td>
+                    <select name="permissions">
+                        <isloop items="${pdict.PermissionGroupList}" var="permission" status="pgLoop">
+                             <option value="${permission.custom.permissionGroupId}">&nbsp;<isprint value="${permission.custom.permissionGroupName + ' (' + permission.custom.permissionGroupId +')'}" encoding="off"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</option>
+                         </isloop>
+                    </select>
+                </td>
+            </tr>            
+        </table>
+        </td></tr>
+
+    
+        <tr><td align="right" class="w e s">
+            <table border="0" cellspacing="4" cellpadding="0">
+            <tbody><tr>
+                <td class="button"><input type="submit" id="apply" class="button" value="${Resource.msg('changePermissions.apply','strings',null)}" name="apply"></td>
+                <td class="button"><input type="submit" class="button" value="${Resource.msg('changePermissions.cancel','strings',null)}" name="cancel"></td>
+            </tr>
+            </tbody>
+            </table>
+        </td></tr>
+    </form>
+</table>
+
+</isdecorate>
+
+

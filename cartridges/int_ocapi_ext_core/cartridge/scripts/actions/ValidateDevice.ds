@@ -1,0 +1,83 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Wrapper to get Store details
+*
+*  @input StoreId : String .
+*  @input TabletSerialNumber : String 
+*  @input CardReaderSerialNumber : String 
+*  @output ErrorMessage : String 
+*
+*/
+
+importPackage( dw.system );
+
+importScript("int_ocapi_ext_core:api/services/StoreCredentialsCO.ds");
+importScript("int_ocapi_ext_core:api/EAStatus.ds");
+
+
+function execute( args : PipelineDictionary ): Number {
+    var result = validateDevice(args.CardReaderSerialNumber, args.StoreId,args.TabletSerialNumber);
+    if (result.ErrorMessage) {
+        args.ErrorMessage = result.ErrorMessage;
+        return PIPELET_ERROR;
+    } else {
+        return PIPELET_NEXT;
+    }
+}
+
+/*
+ * validateDevice - verifies if the device is valid
+ * @param cardReaderSerialNumber
+ * @param storeId
+ * @param tabletSerialNumber
+ */
+function validateDevice(cardReaderSerialNumber,storeId,tabletSerialNumber) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("ValidateDevice: entering script");
+    var result={};
+    var eaStatus = new EAStatus();
+    if (empty(tabletSerialNumber) || empty(cardReaderSerialNumber)) {
+
+        eaStatus.findMessage("EA_DEVICE_VALIDATION_404");
+        return {ErrorMessage : eaStatus.stringify()};
+    }
+        
+    // Call Device Validation Service
+    // Set device status in session
+    session.custom.validDevice = false;
+    session.custom.storeId = null;
+    session.custom.username = null;
+    session.custom.password = null;
+        
+    var s = session;
+    // check credential status
+    var storeCredentials = new StoreCredentials();
+    var storeObj : Object = storeCredentials.adminCredential(storeId);
+    
+    if (storeCredentials.notFound) {
+        eaStatus.findMessage("EA_STORE_404");
+        eaStatus.stores = storeCredentials.getStoreIDs();
+        log.info("validateDevice: exiting script with error EA_STORE_404");
+        return {ErrorMessage : eaStatus.stringify()};
+    }
+    
+    if (empty(storeObj) || storeObj.custom.eaCredentialsExpired) {
+        eaStatus.findMessage("EA_STORE_405");
+        log.info("validateDevice: exiting script with error EA_STORE_405");
+        return {ErrorMessage : eaStatus.stringify()};
+    }     
+    
+    session.custom.validDevice = true;
+    session.custom.storeId = storeId;
+    session.custom.username = storeObj.custom.eaStoreUsername;
+    session.custom.password = storeObj.custom.eaStorePassword;
+    
+    // return credential status
+    log.info("validateDevice: exiting script without error");
+    return {success : true};
+}
+
+module.exports = {
+    validateDevice : validateDevice
+};

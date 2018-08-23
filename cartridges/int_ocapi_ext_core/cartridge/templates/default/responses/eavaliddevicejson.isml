@@ -1,0 +1,19 @@
+<iscontent type="application/json" />
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+<isset name="currencyCode" value="${dw.system.Site.getCurrent().getCurrencyCode()}" scope="page"/>
+{ 
+    "httpStatus" : 200, 
+    "valid_device" : "true",
+    "currency_code": "${currencyCode}",
+    
+    <iscomment>Version of server side EA code</iscomment>
+    "server_version" : "2.5.0",
+    
+    <iscomment>Array of client versions this code supports
+    If you make a change on the client that requires specific server changes,
+      then you should reset this array to be the current client version.
+    If you make a change on the server, but the client does not depend on the change and does not need to be updated,
+       then you should add to this array to say that a client update is not required.
+    </iscomment>
+    "supported_client_versions" : ["2.5.0"]
+}

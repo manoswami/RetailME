@@ -1,0 +1,82 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+ * Creates a payment instrument specific for the given payment type (payment method)
+ * for the given basket. If any error occurs the pipelet returns PIPELET_ERROR with
+ * no payment instrument being created. If the creation succeeded the script returns 
+ * the newly created payment instrument.
+ *
+ * If only one payment instrument is allowed, any existing payment instrument may be
+ * removed by using the RemoveExisting input parameter and passing a Boolean true.
+ *
+ * PJP-2000: Modified logic to reference LineItemCtnr (to work for both Order and Basket)
+ *
+ * @input LineItemCtnr : dw.order.LineItemCtnr The basket.
+ * @input PaymentType : String the payment method of the payment instrument to create.
+ * @input RemoveExisting : Boolean if true, removes any other payment instruments of the same payment method
+ * @input creditCard : Object
+ * @input AuthAmount : Object
+ * @output PaymentInstrument : dw.order.PaymentInstrument The created payment instrument.
+ */
+importPackage( dw.system );
+importPackage( dw.order );
+importPackage( dw.util );
+importPackage( dw.value );
+importPackage( dw.web );
+importScript("int_ocapi_ext_core:actions/GetCoreCartridgePath.ds");
+importScript(getCoreCartridgePath()+":checkout/Utils.ds");
+
+function execute( pdict : PipelineDictionary ) : Number {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("CreateCCPaymentInstrument: entering script");
+    var lineItemCtnr : LineItemCtnr = pdict.LineItemCtnr;
+    var ccNumber : String = pdict.creditCard.num;
+    var paymentType : String = pdict.PaymentType + " " + ccNumber.substr(ccNumber.length-4);
+    var removeExisting : Boolean = pdict.RemoveExisting;
+
+    // validate pipelet input parameters
+    if( lineItemCtnr == null || paymentType == null || removeExisting == null)
+    {
+        log.info("CreateCCPaymentInstrument: exiting script because of missing parameters");    
+        return PIPELET_ERROR;
+    }
+
+    // remove existing payment instruments from the basket
+    if (removeExisting)
+    {
+        removeExistingPaymentInstruments( lineItemCtnr,  paymentType );
+    }
+    
+    var amount : Money;
+    var    balanceAmount : Money = calculatePaymentInstrumentBalanceAmount( lineItemCtnr );
+    
+    if (!empty(pdict.AuthAmount)) {
+        amount = new Money(pdict.AuthAmount, session.getCurrency().getCurrencyCode());
+        
+        if (amount.value > balanceAmount)
+            amount = balanceAmount;
+    } else {
+        // calculate the amount to be reflected by this payment instrument        
+        amount = balanceAmount;
+    }
+    
+    // create a payment instrument
+    var paymentInstr : PaymentInstrument = lineItemCtnr.createPaymentInstrument( paymentType, amount );
+
+    var paymentMethod = PaymentMgr.getPaymentMethod(pdict.PaymentType);
+    if (paymentMethod != null) {
+        paymentInstr.custom.eaIsContactless = paymentMethod.custom.eaIsContactless;
+
+        if (paymentMethod.custom.eaRequireSignature && !paymentMethod.custom.eaIsContactless) {
+            paymentInstr.custom.eaRequireSignature = true;
+        }
+    }
+    
+    pdict.PaymentInstrument = paymentInstr;
+    log.info("CreateCCPaymentInstrument: exiting script without error");
+    return PIPELET_NEXT;
+}
+
+module.exports = {
+    execute : execute
+};

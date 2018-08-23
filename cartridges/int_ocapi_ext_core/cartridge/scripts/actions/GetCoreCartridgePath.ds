@@ -1,0 +1,17 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+ * This script file returns the core cartridge path for the scripts in storefront cartridge.
+ * if you want to change the path of your script files just change the return string and add 
+ * the name of your cartridge here
+ */
+ 
+importPackage( dw.system );
+
+function getCoreCartridgePath( args : PipelineDictionary ) : Number {
+    return 'retailme_storefront_core';
+}
+
+module.exports = {
+    getCoreCartridgePath : getCoreCartridgePath
+};

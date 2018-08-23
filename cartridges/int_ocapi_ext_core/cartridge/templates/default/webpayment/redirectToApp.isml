@@ -1,0 +1,24 @@
+<iscomment>©2013-2018 salesforce.com, inc. All rights reserved.</iscomment>
+
+<html>
+<head>
+<link rel="stylesheet" href="${URLUtils.staticURL('/css/webPayment.css?version=1.168')}" />
+<script type="text/javascript" charset="utf-8">
+    // need to wait for the Open button to be pressed on the location change to Endless Aisle app before we can close
+    setInterval(function(){
+        // This will only close the tab in a launched safari from the navigation icon 
+        window.close(); 
+    }, 100);
+    var newLocation="<isprint value="${dw.util.SecureEncoder.forJavaScriptInHTML(pdict.Location)}" encoding="off">";
+    window.location.href=newLocation;
+    setTimeout(function() {
+        // This tells the user to close the SafariViewController as it can't be closed via .close()
+        // only show this if redirection without action, which means the order is already in process
+        if(newLocation.indexOf('action') == -1) {
+            document.write("<div style='position: absolute;width: 100%;top: 50%;text-align: center;'>" +
+                "<b>${Resource.msg('info.redirect.retryMessage','forms',null)}</b></div>");
+        }
+    }, 300);
+</script>
+</head>
+</html>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jobs xmlns="http://www.demandware.com/xml/impex/jobs/2015-07-01">
+    <job job-id="archive_endless_aisle_device_logs" priority="0">
+        <description>This job will archive the Endless Aisle device logs saved on the server based on the current job configurations</description>
+        <parameters/>
+        <flow>
+            <context site-id="Sites"/>
+            <step step-id="Archive Endless Aisle  device logs" type="ExecuteScriptModule" enforce-restart="false">
+                <description/>
+                <parameters>
+                    <parameter name="ExecuteScriptModule.Module">bm_instore/cartridge/scripts/util/ArchiveEADeviceLogs.ds</parameter>
+                    <parameter name="ExecuteScriptModule.FunctionName">execute</parameter>
+                    <parameter name="ExecuteScriptModule.Transactional">false</parameter>
+                    <parameter name="EA_LOG_FILES_QUOTA">200</parameter>
+                </parameters>
+            </step>
+        </flow>
+        <rules/>
+        <triggers>
+            <run-recurring enabled="true">
+                <recurrence>
+                    <date-from>2017-01-01Z</date-from>
+                    <date-to>2050-01-01Z</date-to>
+                    <start-time>05:00:00.000Z</start-time>
+                    <interval>1h</interval>
+                    <day-of-week>
+                        <weekday>Wednesday</weekday>
+                        <weekday>Sunday</weekday>
+                        <weekday>Thursday</weekday>
+                        <weekday>Saturday</weekday>
+                        <weekday>Monday</weekday>
+                        <weekday>Friday</weekday>
+                        <weekday>Tuesday</weekday>
+                    </day-of-week>
+                </recurrence>
+            </run-recurring>
+        </triggers>
+    </job>
+
+    <job job-id="clean_up_endless_aisle_device_logs" priority="0">
+        <description>This job will clean up or remove endless aisle device logs based on the current configurations of this job</description>
+        <parameters/>
+        <flow>
+            <context site-id="Sites"/>
+            <step step-id="Clean up Endless Aisle  device logs" type="ExecuteScriptModule" enforce-restart="false">
+                <description/>
+                <parameters>
+                    <parameter name="ExecuteScriptModule.Module">bm_instore/cartridge/scripts/util/CleanUpEADeviceLogs.ds</parameter>
+                    <parameter name="ExecuteScriptModule.FunctionName">execute</parameter>
+                    <parameter name="ExecuteScriptModule.Transactional">false</parameter>
+                    <parameter name="ARCHIVE_LIFETIME_IN_DAYS">30</parameter>
+                    <parameter name="TIME_TO_NOTIFY_IN_DAYS">7</parameter>
+                    <parameter name="ADMIN_EMAILS"></parameter>
+                    <parameter name="SERVER_HOSTNAME">company.com</parameter>
+                </parameters>
+            </step>
+        </flow>
+        <rules/>
+        <triggers>
+            <run-recurring enabled="true">
+                <recurrence>
+                    <date-from>2017-01-01Z</date-from>
+                    <date-to>2050-01-01Z</date-to>
+                    <start-time>05:00:00.000Z</start-time>
+                    <interval>1d</interval>
+                    <day-of-week>
+                        <weekday>Wednesday</weekday>
+                        <weekday>Sunday</weekday>
+                        <weekday>Thursday</weekday>
+                        <weekday>Saturday</weekday>
+                        <weekday>Monday</weekday>
+                        <weekday>Friday</weekday>
+                        <weekday>Tuesday</weekday>
+                    </day-of-week>
+                </recurrence>
+            </run-recurring>
+        </triggers>
+    </job>
+
+</jobs>

@@ -1,0 +1,58 @@
+/**
+* ©2015-2018 salesforce.com, inc. All rights reserved.
+*
+* addAssociate.ds - adds an associate (represented as a JSON string) to a store's custom object
+*
+*   @input StoreId : String
+*   @input employeeIds : Object
+*
+*   @output ErrorStatus : String 
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.crypto );
+importPackage( dw.util );
+importPackage( dw.web );
+
+
+function execute( args : PipelineDictionary ) : Number
+{
+    var storeId : String = args.StoreId;
+    var employeeIds :Array = (args.employeeIds?args.employeeIds:[]);
+    
+    if (empty(storeId) || empty(employeeIds)) {
+        Logger.error('AddAssociate: missing required input');
+        args.ErrorStatus = Resource.msg('addassociate.missingReqInputs', 'strings', null);
+        return PIPELET_ERROR;
+    }    
+    
+    try {
+            var storeObj : CustomObject = CustomObjectMgr.getCustomObject("storeAssociates", storeId);
+            var storeEmployees : String = !empty(storeObj.custom.associateIDs)?storeObj.custom.associateIDs:"" ;
+            if(!empty(employeeIds)){
+                var cleanEmployeeList  = cleanUpDuplicateEmployees(employeeIds, storeEmployees);
+                storeEmployees += "," + cleanEmployeeList.join(",");
+                storeObj.custom.associateIDs = storeEmployees;
+            }
+            
+    } catch (e) {
+        Logger.error("Cannot Find custom object for store"+" " + storeId + " (" + e + ")");
+        args.ErrorStatus = Resource.msgf('addassociate.customObjError', 'strings', null, storeId, e);
+        return PIPELET_ERROR;
+    }
+    return PIPELET_NEXT;
+}
+
+
+function cleanUpDuplicateEmployees(employeeIds, currentEmployees){
+    var cleanList:Array = employeeIds;
+    var cEmp = currentEmployees.split(',');
+    cEmp.forEach(function(employee){
+        var idx = cleanList.indexOf(employee);
+        if(idx  >-1){
+             cleanList.splice(idx,1,'');
+        }
+    });
+    return cleanList;
+    
+}

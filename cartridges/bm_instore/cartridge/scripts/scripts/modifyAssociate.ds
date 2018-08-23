@@ -1,0 +1,44 @@
+/**
+* ©2015-2018 salesforce.com, inc. All rights reserved.
+*
+* modifyAssociate.ds - changes the data for an associate
+*
+*   @input AssociateId : String
+*   @input FirstName : String
+*   @input LastName : String
+*   @input PermissionGroupId : String
+*   @input IsLocked : String
+*
+*   @output ErrorStatus : String
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.crypto );
+
+function execute( args : PipelineDictionary ) : Number
+{
+    var associateId : String = args.AssociateId;
+    var firstName : String = args.FirstName;
+    var lastName  : String = args.LastName;
+    var permissionGroupId : String = args.PermissionGroupId;
+    
+    if (empty(associateId) || empty(firstName) || empty(lastName) || empty(permissionGroupId)) {
+        Logger.error("modifyAssociate: missing one of the input values");
+        args.ErrorStatus = "modifyAssociate: Please supply all required values.";
+        return PIPELET_ERROR;
+    }
+    
+    var empCO : CustomObject = CustomObjectMgr.getCustomObject("associates", associateId);
+
+    if (empty(empCO)) {
+        Logger.error("Associate " + associateId + " is not in this store's database");
+        args.ErrorStatus = "Associate " + associateId + " was not found in Store " + storeId;
+        return PIPELET_ERROR;
+    }
+    
+    empCO.custom.firstName = firstName;
+    empCO.custom.lastName = lastName;
+    empCO.custom.permissionGroupId = permissionGroupId;
+
+    return PIPELET_NEXT;
+}

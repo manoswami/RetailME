@@ -1,0 +1,30 @@
+{
+    "_v": "17.1",
+    "clients": [{
+        "client_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "resources": [{
+            "resource_id": "/users/this",
+            "methods": ["get"],
+            "read_attributes": "(**)",
+            "write_attributes": "(**)"
+        },
+        {
+            "resource_id": "/users/this/password",
+            "methods": ["patch"],
+            "read_attributes": "(**)",
+            "write_attributes": "(**)"
+        },
+        {
+            "resource_id": "/custom_objects/{object_type}/{key}",
+            "methods": ["patch"],
+            "read_attributes": "(**)",
+            "write_attributes": "(**)"
+        },
+        {
+            "resource_id": "/sites/{site_id}/custom_objects/{object_type}/{key}",
+            "methods": ["patch"],
+            "read_attributes": "(**)",
+            "write_attributes": "(**)"
+        }]
+    }]
+}

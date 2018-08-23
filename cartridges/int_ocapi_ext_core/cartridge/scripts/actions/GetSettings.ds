@@ -1,0 +1,190 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Wrapper to get CFG Settings details
+*
+*  @input StoreID : String
+*  @output JSONResponse : Object 
+*  @output ErrorMessage : Object
+*
+*/
+
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.util );
+importPackage( dw.value );
+importPackage( dw.catalog );
+
+importScript("int_ocapi_ext_core:util/ObjectLiteral.ds");
+importScript("int_ocapi_ext_core:api/EAStatus.ds");
+
+/**
+* execute - main script entry that will read the site preferences and store preferences for Alloy.CFG settings to send back to EA
+*/
+function execute(args : PipelineDictionary ) : Number {
+    var result = getSettings(args.StoreID);
+    if (result.ErrorMessage) {
+        args.ErrorMessage = result.ErrorMessage;
+        return PIPELET_ERROR;
+    }
+    args.JSONResponse = result.JSONResponse;
+    return PIPELET_NEXT;
+}
+
+/**
+* ensureComputedProperties - will add a default value for any computed properties to the settings object.
+* @param {Object} settings is the object to add the configuration to for returning to EA
+*/
+function ensureComputedProperties( settings : Object ) {
+    // ensure kiosk_mode.has credentials property is false
+    settings.kiosk_mode = {
+        has_credentials: false
+    };
+}
+
+/**
+ * getSettings - return the settings(site preferences) for a particular store
+ * @param storeID
+ */
+function getSettings(storeID) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("GetSettings: entering script");
+    var settings = {};
+    settings.CFG = {};
+    try{
+        log.info("GetSettings: reading settings from Site Preferences");
+
+        ensureComputedProperties( settings.CFG );
+
+        // global settings on site preferences
+        var site : Site = Site.getCurrent();
+        var sitePrefs : SitePreferences = site.getPreferences();
+        loadPrefSettings(sitePrefs, settings.CFG);
+
+        // store settings override global site preferences
+        var stores : SeekableIterator = SystemObjectMgr.querySystemObjects("Store", "ID = {0}", "ID asc", storeID);
+        while (stores.hasNext()) {
+            var store : Store = stores.next();
+            if(store){
+                log.info("GetSettings: reading settings from " + storeID);
+                loadPrefSettings(store, settings.CFG);
+            }
+        }
+
+    } catch(e) {
+        log.info("GetSettings: exiting script with ERROR");
+        return {ErrorMessage:e};
+    }
+    
+    log.info("GetSettings: exiting script without error");
+    return {JSONResponse:settings};
+}
+
+/**
+* loadPrefSettings - will load the attribute definitions for the loadFrom param and generate JSON output for EA
+* @param {ExtensibleObject} loadFrom is where to load the attribute definitions from
+* @param {Object} settings is the object to add the configuration to for returning to EA
+*/
+function loadPrefSettings( loadFrom : ExtensibleObject, settings : Object ) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    try {
+        var definitions : ObjectTypeDefinition = loadFrom.describe();
+        var attributes : ArrayList = definitions.getAttributeDefinitions();
+        var pref : ObjectAttributeDefinition;
+        for each(pref in attributes){
+            if (!pref.isSystem()) {
+                var prefName : String = pref.getDisplayName();
+                if (prefName && prefName.indexOf('{') != -1) {
+                    // look in the name of the preference for {} around the config name that will be used by EA, ie {kiosk_mode.username} will become Alloy.CFG.kiosk_mode.username in EA
+                    prefName = prefName.replace( /(^.*\{|\}.*$)/g, '' );
+                    if (pref.isMultiValueType()) {
+                        var values : ArrayList = loadFrom.getCustom()[pref.getID()];
+                        var items = [];
+                        for each(var value in values){
+                            var stringLabel = pref.getID() + '.' + value;
+                            items.push(dw.web.Resource.msg(stringLabel, 'getsettings', value));
+                        }
+                        addSetting( prefName, items, settings);
+                    }else{
+                        addSetting( prefName, loadFrom.getCustom()[pref.getID()], settings);
+                    }
+                }
+            }
+        }
+    } catch(ex) {
+        var eaStatus = new EAStatus();
+        eaStatus.exception = ex;
+        eaStatus.findMessage("EA_SETTINGS_400");
+        log.info("GetSettings: exception " + JSON.stringify(ex));
+        throw eaStatus;
+    }
+}
+
+/**
+* addSetting - add a single setting to the prefSetting object that will go back to the EA app
+* @param {String} prefName - name of the Alloy.CFG setting for this new config
+* @param {CustomAttributes} attribute - the attribute to read the value for of the config
+* @param {Object} prefSetting - where to add the new setting to
+*/
+function addSetting( prefName : String, attribute : CustomAttributes, prefSetting : Object) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    try{
+        // Only want to check for null here, because we want to return 0 values
+        if (attribute != null) {
+            if (shouldFilterKioskCredentials(prefName, attribute, prefSetting)) {
+                return;
+            }
+            if (Object.prototype.hasOwnProperty.call(attribute,'value')) {
+                // This attribute has a value so we can set the attribute to that 
+                // If it doesn't have a value then the attribute could be null or empty and we don't want to send those back
+                // It could also have an empty value and we want to make sure we get that value before setting 
+                attribute = attribute.value;
+            }
+            // Only want to check for null here, because we want to return 0 values
+            if (attribute != null && attribute !== "") {
+                var dotIndex = prefName.indexOf(".");
+                if( dotIndex == -1){
+                    // we are at the end of the config name so set the new setting
+                    prefSetting[prefName] = attribute;
+                } else {
+                    // we have a nested config name like (kiosk_mode.username) and need to set
+                    // the attribute value on the username object
+                    var first = prefName.slice(0, dotIndex);
+                    var rest = prefName.slice(dotIndex+1);
+                    if(prefSetting[first] == null){
+                        prefSetting[first] = {};
+                    }
+                    prefSetting = prefSetting[first];
+                    // we have a nested configuration here so need to add the value once we reach the last configuration name (seperated by dot)
+                    addSetting(rest, attribute, prefSetting);
+                }
+            }
+        }
+    } catch(ex) {
+        var eaStatus = new EAStatus();
+        eaStatus.exception = ex;
+        eaStatus.findMessage("EA_SETTINGS_400");
+        log.info("GetSettings: exception " + JSON.stringify(ex));
+        throw eaStatus;
+    }
+}
+
+/**
+* shouldFilter - returns true if property should be filtered out of configuration, false otherwise.
+* This function explicitly blocks out kiosk_mode username and password properties.
+* @param {String} prefName - name of property to check
+*/
+function shouldFilterKioskCredentials(prefName : String, attribute : CustomAttributes, prefSetting : Object) {
+    if (prefName.equals("kiosk_mode.username") || prefName.equals("kiosk_mode.password")) {
+        if (attribute && attribute != '') {
+            var kiosk_mode = prefSetting["kiosk_mode"];
+            kiosk_mode.has_credentials = true;
+        }
+        return true;
+    }
+    return false;
+}
+
+module.exports = {
+    getSettings : getSettings
+};

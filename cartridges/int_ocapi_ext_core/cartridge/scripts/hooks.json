@@ -1,0 +1,90 @@
+{
+    "hooks": [{
+        "name" : "dw.ocapi.shop.basket.items.beforePOST",
+        "script": "./hooks/basket_items_hooks.js"
+    },{
+        "name": "dw.ocapi.shop.basket.items.afterPOST",
+        "script": "./hooks/basket_items_hooks.js"
+    },{
+        "name" : "dw.ocapi.shop.basket.item.beforePATCH",
+        "script": "./hooks/basket_item_hooks.js"
+    }, {
+        "name": "dw.ocapi.shop.basket.item.afterPATCH",
+        "script": "./hooks/basket_item_hooks.js"
+    }, {
+        "name" : "dw.ocapi.shop.basket.item.beforeDELETE",
+        "script": "./hooks/basket_item_hooks.js"
+    }, {
+        "name": "dw.ocapi.shop.basket.beforePATCH",
+        "script": "./hooks/basket_hook_scripts.js"
+    }, {
+        "name": "dw.ocapi.shop.basket.afterPATCH",
+        "script": "./hooks/basket_hook_scripts.js"
+    }, {
+        "name": "dw.ocapi.shop.basket.validateBasket",
+        "script": "./hooks/basket_hook_scripts.js"
+    }, {
+        "name" : "dw.ocapi.shop.basket.price_adjustment.beforePOST",
+        "script": "./hooks/basket_price_adjustment_hooks.js"
+    }, {
+        "name" : "dw.ocapi.shop.basket.price_adjustment.afterPOST",
+        "script": "./hooks/basket_price_adjustment_hooks.js"
+    }, {
+        "name" : "dw.ocapi.shop.basket.price_adjustment.afterDELETE",
+        "script": "./hooks/basket_price_adjustment_hooks.js"
+    }, {
+        "name" : "dw.ocapi.shop.basket.price_adjustment.afterPATCH",
+        "script": "./hooks/basket_price_adjustment_hooks.js"
+    }, {
+        "name" : "dw.ocapi.shop.basket.price_adjustment.beforePATCH",
+        "script": "./hooks/basket_price_adjustment_hooks.js"
+    }, {
+        "name" : "dw.ocapi.shop.basket.coupon.beforePOST",
+        "script": "./hooks/basket_coupon_hooks.js"
+    }, {
+        "name" : "dw.ocapi.shop.basket.coupon.beforeDELETE",
+        "script": "./hooks/basket_coupon_hooks.js"
+    }, {
+        "name": "dw.ocapi.shop.basket.billing_address.beforePUT",
+        "script": "./hooks/basket_billing_address_hooks.js"
+    }, {
+        "name": "dw.ocapi.shop.basket.shipment.shipping_address.beforePUT",
+        "script": "./hooks/basket_shipping_address_hooks.js"
+    }, {
+        "name": "dw.ocapi.shop.basket.shipment.shipping_method.afterPUT",
+        "script": "./hooks/basket_shipping_method_hooks.js"
+    }, {
+        "name" : "dw.ocapi.shop.basket.customer.beforePUT",
+        "script": "./hooks/basket_customer_hooks.js"
+    }, {
+        "name": "dw.ocapi.shop.customer.afterPOST",
+        "script": "./hooks/customer_hook_scripts.js"
+    }, {
+        "name": "dw.ocapi.shop.customer.addresses.beforePOST",
+        "script": "./hooks/customer_addresses_hooks.js"
+    }, {
+        "name": "dw.ocapi.shop.customer.address.beforePATCH",
+        "script": "./hooks/customer_address_hook_scripts.js"
+    }, {
+        "name": "dw.ocapi.shop.customer.address.afterPATCH",
+        "script": "./hooks/customer_address_hook_scripts.js"
+    }, {
+        "name": "dw.ocapi.data.object.afterPatch",
+        "script": "./hooks/custom_objects_hook_scripts.js"
+    }, {
+        "name": "dw.ocapi.data.users.afterPATCH",
+        "script": "./hooks/users_hook_scripts.js"
+    }, {
+        "name" : "dw.ocapi.shop.product_search.beforeGET",
+        "script": "./hooks/product_search_hook_scripts.js"
+    }, {
+        "name" : "dw.ocapi.shop.product.beforeGET",
+        "script": "./hooks/product_hook_scripts.js"
+    }, {
+        "name": "dw.ocapi.shop.order.modifyGETResponse",
+        "script": "./hooks/order_hook_scripts.js"
+    }, {
+        "name": "dw.ocapi.shop.order.afterPOST",
+        "script": "./hooks/order_hook_scripts.js"
+    }]
+}

@@ -1,0 +1,161 @@
+/**
+* ©2015-2018 salesforce.com, inc. All rights reserved.
+*/
+.cbutton {
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0.05, #7fbb00
+        ), color-stop(1, #7fbb00));
+    background: -moz-linear-gradient(top, #7fbb00 5%, #7fbb00 100%);
+    background: -webkit-linear-gradient(top, #7fbb00 5%, #7fbb00 100%);
+    background: -o-linear-gradient(top, #7fbb00 5%, #7fbb00 100%);
+    background: -ms-linear-gradient(top, #7fbb00 5%, #7fbb00 100%);
+    background: linear-gradient(to bottom, #7fbb00 5%, #7fbb00 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#7fbb00',
+        endColorstr='#7fbb00', GradientType=0);
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+    border-radius: 0px;
+    border: 1px solid #7fbb00;
+    display: inline-block;
+    cursor: pointer;
+    color: #ffffff;
+    font-family: "Helvetica Neue";
+    font-size: 16px;
+    font-weight: normal;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 30px;
+    padding-right: 30px;
+    text-decoration: none;
+    text-shadow: 0px 1px 0px #5b8a3c;
+    background-color: #3a5600;
+    margin-left: 5px;
+    margin-top: 5px;
+}
+
+.cbutton:active {
+    position: absolute;
+    top: 1px;
+    background: #6ea200 no-repeat bottom;
+    transition: background-color 0.5s ease 0.5s, box-shadow 0.2s ease 0s;
+}
+
+.tdButton {
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0.05, #7fbb00
+        ), color-stop(1, #7fbb00));
+    background: -moz-linear-gradient(top, #7fbb00 5%, #7fbb00 100%);
+    background: -webkit-linear-gradient(top, #7fbb00 5%, #7fbb00 100%);
+    background: -o-linear-gradient(top, #7fbb00 5%, #7fbb00 100%);
+    background: -ms-linear-gradient(top, #7fbb00 5%, #7fbb00 100%);
+    background: linear-gradient(to bottom, #7fbb00 5%, #7fbb00 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#7fbb00',
+        endColorstr='#7fbb00', GradientType=0);
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+    border-radius: 0px;
+    border: 0px solid #7fbb00;
+    display: inline-block;
+    cursor: pointer;
+    color: #ffffff;
+    font-family: "Helvetica Neue";
+    font-size: 16px;
+    font-weight: normal;
+    padding-top: 15px;
+    padding-bottom: 15px;
+    text-decoration: none;
+    text-shadow: 0px 1px 0px #5b8a3c;
+    background-color: #3a5600;
+}
+
+.tdButton:active {
+    position: relative;
+    top: 1px;
+    background: #6ea200 no-repeat bottom;
+    transition: background-color 0.5s ease 0.5s, box-shadow 0.2s ease 0s;
+}
+
+.currentTooltip_ {
+    font-family: Arial;
+    width: auto;
+    height: auto;
+    position: absolute;
+    background-color: white;
+    border: 1px solid #CCCCCC;
+    -webkit-box-shadow: 3px 3px 1px -2px rgba(204, 204, 204, 1);
+    -moz-box-shadow: 3px 3px 1px -2px rgba(204, 204, 204, 1);
+    box-shadow: 3px 3px 1px -2px rgba(204, 204, 204, 1);
+    border-radius: 2px;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+.leftCorner {
+    position: absolute;
+    top: 0px;
+    left: 3px;
+    z-index: 1000;
+}
+
+.separator {
+    border: 0;
+    height: 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.centerText {
+    text-align: center;
+}
+
+.alignLeft {
+    text-align: left;
+}
+
+.selectedTableRow {
+    background-color: #7fbb00;
+}
+.hoverTableRow {
+    background-color: #7fbb00;
+}
+
+.tableRowTextStyle {
+    font-weight: bold;
+}
+
+.wordBreak {
+    white-space: nowrap;
+}
+
+#productTitle {
+    font-family: Arial;
+    text-align: center;
+    font-weight: bold;
+    font-size: 20px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.separator {
+    border: 0;
+    height: 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.tooltipTextStyle {
+    font-family: Arial;
+    font-size: 15px;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+.fullWidth {
+    width: 100%;
+}
+
+.quaterWidth {
+    width: 25%;
+}
+
+.threeQuaterWidth {
+    width: 75%;
+}

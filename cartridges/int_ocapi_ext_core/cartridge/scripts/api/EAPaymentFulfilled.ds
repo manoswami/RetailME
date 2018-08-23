@@ -1,0 +1,48 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Script file to determine if the payment fulfills the order
+* To define input and output parameters, create entries of the form:
+*
+* @input LineItemCtnr : dw.order.LineItemCtnr The basket or Order.
+* @output PaymentBalance : Number
+* @output OrderTotalAuthorized : Boolean
+*
+*/
+importPackage( dw.system );
+importPackage( dw.order );
+importPackage( dw.value );
+importScript("int_ocapi_ext_core:actions/GetCoreCartridgePath.ds");
+importScript(getCoreCartridgePath()+":checkout/Utils.ds");
+
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = paymentFulfilled(args.LineItemCtnr);
+    if (result.PaymentBalance == 0) {
+        args.OrderTotalAuthorized = result.OrderTotalAuthorized;
+        args.PaymentBalance = result.PaymentBalance;
+        return PIPELET_NEXT;
+    }
+    return PIPELET_NEXT;
+}
+
+/**
+ * paymentFulfilled - check if the order payment is paid
+ * @param : lineItemCtnr
+ */ 
+function paymentFulfilled(lineItemCtnr) {
+    var amount : Money = calculatePaymentInstrumentBalanceAmount(lineItemCtnr);
+    
+    var OrderTotalAuthorized = true;
+    if (amount.value > 0) {
+        OrderTotalAuthorized = false;
+    }
+    return {
+        PaymentBalance : amount.value,
+        OrderTotalAuthorized:OrderTotalAuthorized
+    };
+}
+
+module.exports = {
+    paymentFulfilled : paymentFulfilled
+};

@@ -1,0 +1,29 @@
+/**
+* ©2017-2018 salesforce.com, inc. All rights reserved.
+*
+*  Search orders based on the search key/value pairs
+*
+*   @input dateFrom : String
+*   @input dateTo : String
+*   @input employeeId : String
+*   @input storeId : String
+*   @input channelType : Number
+*   @input country : String
+*   @output filteredOrders : Object
+*
+*/
+var OrderMgr = require('dw/order/OrderMgr');
+
+function execute( args : PipelineDictionary ) : Number
+{
+    var filteredOrders;
+    if (args.employeeId && args.country) {
+        filteredOrders = OrderMgr.searchOrders('creationDate >= {0} AND creationDate <= {1} AND custom.eaEmployeeId={2} and custom.eaStoreId = {3} and channelType = {4} and custom.eaCountry = {5}', 'creationDate asc',
+                args.dateFrom, args.dateTo, args.employeeId, args.storeId, args.channelType, args.country);
+    } else {
+        filteredOrders = OrderMgr.searchOrders('creationDate >= {0} AND creationDate <= {1} and custom.eaStoreId = {2} and channelType = {3} and custom.eaCountry = {4}', 'creationDate asc',
+                args.dateFrom, args.dateTo, args.storeId, args.channelType, args.country);
+    }
+    args.filteredOrders = filteredOrders;
+    return PIPELET_NEXT;
+}

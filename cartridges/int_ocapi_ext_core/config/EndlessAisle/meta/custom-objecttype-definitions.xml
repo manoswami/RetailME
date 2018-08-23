@@ -1,0 +1,532 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://www.demandware.com/xml/impex/metadata/2006-10-31">
+    <custom-type type-id="associates">
+        <display-name xml:lang="x-default">Associates</display-name>
+        <staging-mode>no-staging</staging-mode>
+        <storage-scope>organization</storage-scope>
+        <key-definition attribute-id="employeeId">
+            <type>string</type>
+            <min-length>0</min-length>
+        </key-definition>
+        <attribute-definitions>
+            <attribute-definition attribute-id="firstName">
+                <display-name xml:lang="x-default">First Name</display-name>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="hashedCode">
+                <display-name xml:lang="x-default">Hashed Code</display-name>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="isLocked">
+                <display-name xml:lang="x-default">Is Locked flag</display-name>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="lastName">
+                <display-name xml:lang="x-default">Last Name</display-name>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+                <field-length>0</field-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="loginAttempts">
+                <display-name xml:lang="x-default">Login Attempts</display-name>
+                <type>int</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <field-length>0</field-length>
+                <min-value>0.0</min-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="permissionGroupId">
+                <display-name xml:lang="x-default">Permission Group ID</display-name>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+                <field-length>0</field-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="salt">
+                <display-name xml:lang="x-default">Salt Key</display-name>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+        </attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="associates">
+                <display-name xml:lang="x-default">Associates</display-name>
+                <attribute attribute-id="employeeId"/>
+                <attribute attribute-id="lastName"/>
+                <attribute attribute-id="firstName"/>
+                <attribute attribute-id="permissionGroupId"/>
+                <attribute attribute-id="loginAttempts"/>
+                <attribute attribute-id="isLocked"/>
+                <attribute attribute-id="hashedCode"/>
+                <attribute attribute-id="salt"/>
+            </attribute-group>
+        </group-definitions>
+    </custom-type>
+
+    <custom-type type-id="oauth">
+        <display-name xml:lang="x-default">OAuth Parameters</display-name>
+        <description xml:lang="x-default">Client ID and secret needed for OAuth</description>
+        <staging-mode>source-to-target</staging-mode>
+        <storage-scope>organization</storage-scope>
+        <key-definition attribute-id="clientId">
+            <type>string</type>
+            <min-length>0</min-length>
+        </key-definition>
+        <attribute-definitions>
+            <attribute-definition attribute-id="secret">
+                <display-name xml:lang="x-default">Client ID Secret</display-name>
+                <type>password</type>
+                <mandatory-flag>true</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+        </attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="idAndSecret">
+                <display-name xml:lang="x-default">ID and Secret</display-name>
+                <attribute attribute-id="clientId"/>
+                <attribute attribute-id="secret"/>
+            </attribute-group>
+        </group-definitions>
+    </custom-type>
+
+    <custom-type type-id="permissionGroup">
+        <display-name xml:lang="x-default">Permission Group</display-name>
+        <staging-mode>source-to-target</staging-mode>
+        <storage-scope>organization</storage-scope>
+        <key-definition attribute-id="permissionGroupId">
+            <display-name xml:lang="x-default">Permission Group ID</display-name>
+            <type>string</type>
+            <min-length>0</min-length>
+            <field-length>0</field-length>
+        </key-definition>
+        <attribute-definitions>
+            <attribute-definition attribute-id="accessSalesReports">
+                <display-name xml:lang="x-default">Allow Associate Level Sales Reports</display-name>
+                <description xml:lang="x-default">Allows the store associate to only access their own sales reports in the associate profile</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="accessStoreLevelSalesReports">
+                <display-name xml:lang="x-default">Allow Store Level Sales Reports (includes other associates)</display-name>
+                <description xml:lang="x-default">Allows the store associate to view sales reports at the store level and for other associates</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="allowAdmin">
+                <display-name xml:lang="x-default">Allow Administrator Access (Store Manager)</display-name>
+                <description xml:lang="x-default">Allows the store associate to log into and use the Admin Dashboard and update store passwords</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="allowItemPriceOverrideByAmount">
+                <display-name xml:lang="x-default">Allow Item Override by Amount Off (to defined max)</display-name>
+                <description xml:lang="x-default">Allows the store associate to override an item price by an amount off up to the maximum set</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="allowItemPriceOverrideByPercent">
+                <display-name xml:lang="x-default">Allow Item Override By Percent Off (to defined max)</display-name>
+                <description xml:lang="x-default">Allows the store associate to override an item price by a percent off up to the maximum set</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="allowItemPriceOverrideFixedPrice">
+                <display-name xml:lang="x-default">Allow Fixed-Price Override (no limits)</display-name>
+                <description xml:lang="x-default">Allows the store associate to override an item price to any fixed price.  There are no limitations.  The fixed price can be as low as 0.00.</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="allowLOBO">
+                <display-name xml:lang="x-default">Allow Endless Aisle App Access</display-name>
+                <description xml:lang="x-default">Allows the store associate to log into and use the Endless Aisle application</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="allowManagerOverrides">
+                <display-name xml:lang="x-default">Allow Manager Overrides</display-name>
+                <description xml:lang="x-default">When enabled, users with this permission can perform Manager Price Overrides for transactions where other associates are logged in</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="allowShippingOverrideByAmount">
+                <display-name xml:lang="x-default">Allow Shipping Override by Amount Off (to defined max)</display-name>
+                <description xml:lang="x-default">Allows the store associate to override the shipping price by an amount off up to the maximum set</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="allowShippingOverrideByPercent">
+                <display-name xml:lang="x-default">Allow Shipping Override by Percent Off (to defined max)</display-name>
+                <description xml:lang="x-default">Allows the store associate to override the shipping price by a percent off up to the maximum set</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="allowShippingOverrideFixed">
+                <display-name xml:lang="x-default">Allow Fixed-Price Shipping Override (no limits)</display-name>
+                <description xml:lang="x-default">Allows the store associate to override the shipping price to any amount down to 0.00</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="itemPriceOverrideMaxPercent">
+                <display-name xml:lang="x-default">Maximum Item Override Percentage/Amount Off Allowed</display-name>
+                <description xml:lang="x-default">Enter the maximum percentage off an associate may take for an item price override.  This value is used to calculate the maximum amount off, too.  None means they can take 100% off.</description>
+                <type>enum-of-string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">0%</display>
+                        <value>0</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">5%</display>
+                        <value>.05</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">10%</display>
+                        <value>.1</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">15%</display>
+                        <value>.15</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">20%</display>
+                        <value>.2</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">25%</display>
+                        <value>.25</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">30%</display>
+                        <value>.3</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">35%</display>
+                        <value>.35</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">40%</display>
+                        <value>.4</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">45%</display>
+                        <value>.45</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">50%</display>
+                        <value>.5</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">55%</display>
+                        <value>.55</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">60%</display>
+                        <value>.6</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">65%</display>
+                        <value>.65</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">70%</display>
+                        <value>.7</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">75%</display>
+                        <value>.75</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">80%</display>
+                        <value>.8</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">85%</display>
+                        <value>.85</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">90%</display>
+                        <value>.9</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">95%</display>
+                        <value>.95</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">100%</display>
+                        <value>1</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>
+            <attribute-definition attribute-id="permissionGroupName">
+                <display-name xml:lang="x-default">Permission Group Name</display-name>
+                <description xml:lang="x-default">Name to display for this permission group</description>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+                <field-length>0</field-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="shippingPriceOverrideMaxPercent">
+                <display-name xml:lang="x-default">Maximum Shipping Override Percentage/Amount Off Allowed</display-name>
+                <description xml:lang="x-default">Enter the maximum percentage off an associate may take for a shipping override.  This value is used to calculate the maximum amount off, too.  None means they can take 100% off.</description>
+                <type>enum-of-string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">0%</display>
+                        <value>0</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">5%</display>
+                        <value>.05</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">10%</display>
+                        <value>.1</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">15%</display>
+                        <value>.15</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">20%</display>
+                        <value>.2</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">25%</display>
+                        <value>.25</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">30%</display>
+                        <value>.30</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">35%</display>
+                        <value>.35</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">40%</display>
+                        <value>.4</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">45%</display>
+                        <value>.45</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">50%</display>
+                        <value>.5</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">55%</display>
+                        <value>.55</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">60%</display>
+                        <value>.6</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">65%</display>
+                        <value>.65</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">70%</display>
+                        <value>.7</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">75%</display>
+                        <value>.75</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">80%</display>
+                        <value>.8</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">85%</display>
+                        <value>.85</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">90%</display>
+                        <value>.9</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">95%</display>
+                        <value>.95</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">100%</display>
+                        <value>1</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>
+        </attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="permissionGroup">
+                <display-name xml:lang="x-default">Permission Group</display-name>
+                <attribute attribute-id="permissionGroupId"/>
+                <attribute attribute-id="permissionGroupName"/>
+            </attribute-group>
+            <attribute-group group-id="LOBO">
+                <display-name xml:lang="x-default">Login On Behalf Of</display-name>
+                <attribute attribute-id="allowLOBO"/>
+            </attribute-group>
+            <attribute-group group-id="itemPriceOverrides">
+                <display-name xml:lang="x-default">Item Price Overrides</display-name>
+                <attribute attribute-id="allowItemPriceOverrideFixedPrice"/>
+                <attribute attribute-id="allowItemPriceOverrideByPercent"/>
+                <attribute attribute-id="allowItemPriceOverrideByAmount"/>
+                <attribute attribute-id="itemPriceOverrideMaxPercent"/>
+            </attribute-group>
+            <attribute-group group-id="shippingOverrides">
+                <display-name xml:lang="x-default">Shipping Price Overrides</display-name>
+                <attribute attribute-id="allowShippingOverrideFixed"/>
+                <attribute attribute-id="allowShippingOverrideByPercent"/>
+                <attribute attribute-id="allowShippingOverrideByAmount"/>
+                <attribute attribute-id="shippingPriceOverrideMaxPercent"/>
+            </attribute-group>
+            <attribute-group group-id="managerOverride">
+                <display-name xml:lang="x-default">Manager Overrides</display-name>
+                <attribute attribute-id="allowManagerOverrides"/>
+            </attribute-group>
+            <attribute-group group-id="adminAccess">
+                <display-name xml:lang="x-default">Administrator</display-name>
+                <attribute attribute-id="allowAdmin"/>
+            </attribute-group>
+            <attribute-group group-id="salesReports">
+                <display-name xml:lang="x-default">Sales Reports</display-name>
+                <attribute attribute-id="accessSalesReports"/>
+                <attribute attribute-id="accessStoreLevelSalesReports"/>
+            </attribute-group>
+        </group-definitions>
+    </custom-type>
+
+    <custom-type type-id="storeAssociates">
+        <display-name xml:lang="x-default">Store Associates Credentials</display-name>
+        <staging-mode>no-staging</staging-mode>
+        <storage-scope>organization</storage-scope>
+        <key-definition attribute-id="storeId">
+            <type>string</type>
+            <min-length>0</min-length>
+        </key-definition>
+        <attribute-definitions>
+            <attribute-definition attribute-id="associateIDs">
+                <display-name xml:lang="x-default">Associate IDs</display-name>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+        </attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="employees">
+                <display-name xml:lang="x-default">Employees</display-name>
+                <attribute attribute-id="storeId"/>
+                <attribute attribute-id="associateIDs"/>
+            </attribute-group>
+        </group-definitions>
+    </custom-type>
+
+    <custom-type type-id="storeCredentials">
+        <staging-mode>no-staging</staging-mode>
+        <storage-scope>organization</storage-scope>
+        <key-definition attribute-id="storeId">
+            <type>string</type>
+            <min-length>0</min-length>
+        </key-definition>
+        <attribute-definitions>
+            <attribute-definition attribute-id="eaCredentialsExpired">
+                <display-name xml:lang="x-default">Credentials Expired</display-name>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="eaStorePassword">
+                <display-name xml:lang="x-default">Store Password</display-name>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <field-length>0</field-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="eaStoreUsername">
+                <display-name xml:lang="x-default">Store Username</display-name>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+                <field-length>0</field-length>
+            </attribute-definition>
+        </attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="store credentials">
+                <display-name xml:lang="x-default">Store Credentials</display-name>
+                <attribute attribute-id="storeId"/>
+                <attribute attribute-id="eaCredentialsExpired"/>
+                <attribute attribute-id="eaStoreUsername"/>
+                <attribute attribute-id="eaStorePassword"/>
+            </attribute-group>
+        </group-definitions>
+    </custom-type>
+
+    <custom-type type-id="webOrder">
+        <staging-mode>no-staging</staging-mode>
+        <storage-scope>organization</storage-scope>
+        <key-definition attribute-id="token">
+            <type>string</type>
+            <min-length>0</min-length>
+        </key-definition>
+        <attribute-definitions>
+            <attribute-definition attribute-id="orderNo">
+                <display-name xml:lang="x-default">Order Number</display-name>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+        </attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="mapping">
+                <attribute attribute-id="orderNo"/>
+                <attribute attribute-id="token"/>
+            </attribute-group>
+        </group-definitions>
+    </custom-type>
+
+</metadata>

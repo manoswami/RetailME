@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<access-roles xmlns="http://www.demandware.com/xml/impex/accessrole/2007-09-05">
+    <access-role role-id="EAStoreRole">
+        <description>The EAStoreRole is used by the store Business Manager users for Endless Aisle in order to provide access for actions taken in the application.</description>
+        <access-controls>
+            <access-control resource-path="BUSINESSMGR/CustomMenu/Sites/RetailStore/manage_associates_id01" permission="ACCESS"/>
+            <access-control resource-path="BUSINESSMGR/SystemMenu/Sites/RetailStore/site-obj_impex" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/de" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/de_DE" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/default" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/en" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/en_CA" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/en_GB" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/en_US" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/es" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/fr" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/fr_CA" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/fr_FR" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/it" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/it_IT" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/ja" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/ja_JP" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/nl" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/zh" permission="ACCESS"/>
+            <access-control resource-path="LOCALES/zh_CN" permission="ACCESS"/>
+            <access-control resource-path="OBJECT/Site/Sites/RetailStore" permission="Create_Order_On_Behalf_Of"/>
+            <access-control resource-path="OBJECT/Site/Sites/RetailStore" permission="Handle_External_Orders"/>
+            <access-control resource-path="OBJECT/Site/Sites/RetailStore" permission="Login_Agent"/>
+            <access-control resource-path="OBJECT/Site/Sites/RetailStore" permission="Login_On_Behalf"/>
+            <access-control resource-path="OBJECT/Site/Sites/RetailStore" permission="Search_Orders"/>
+            <access-control resource-path="OBJECT/Site/Sites/RetailStore" permission="Adjust_Item_Price"/>
+            <access-control resource-path="OBJECT/Site/Sites/RetailStore" permission="Adjust_Shipping_Price"/>
+        </access-controls>
+    </access-role>
+</access-roles>
+

@@ -1,0 +1,55 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Create a brand new basket for a customer. 
+* 
+* This script gets called when a new customer is created through EA so they will get a storefront basket.
+*
+*  @input Customer : dw.customer.Customer
+*
+*/
+importPackage( dw.system );
+importPackage( dw.order );
+importPackage( dw.customer );
+
+function execute( args : PipelineDictionary ) : Number {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("CreateBasketForCustomer: entering execute");
+    var Customer:Customer = args.Customer;
+    var result = createBasket(Customer);
+    if (result) {
+        return PIPELET_NEXT;
+    } else {
+        return PIPELET_ERROR;
+    }
+}
+
+/**
+ * Create a new basket for a customer
+ * @param Customer
+ * @return Boolean
+ */
+function createBasket(Customer:Customer) {
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("CreateBasketForCustomer: entering createBasket");
+    
+    // create a new basket for the customer in session
+    var basket = BasketMgr.getCurrentOrNewBasket();
+    if (basket) {
+        var shipment = basket.getDefaultShipment();
+        var address = shipment.createShippingAddress();
+        var customerProfile = Customer.getProfile();
+        if (customerProfile) {
+            address.setFirstName(customerProfile.getFirstName());
+        }
+        log.info("createBasket success");
+        return true;
+    } else {
+        log.info("createBasket failure");
+        return false;
+    }
+}
+
+module.exports = {
+    createBasket : createBasket
+};

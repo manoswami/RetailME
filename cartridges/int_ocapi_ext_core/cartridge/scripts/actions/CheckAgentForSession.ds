@@ -1,0 +1,54 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+*  On SetDataOnNewSession, make sure the employee id, store id, and permission group id are all correct
+*
+*  @input EmployeeId : String
+*  @input StoreId : String
+*  @input Passcode: String
+*
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importScript("api/Authorize.ds");
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = checkAgent(args.EmployeeId, args.Passcode,args.StoreId);
+    if (result.status) {
+        args.status = result.status;
+        return PIPELET_ERROR;
+    } else {
+        return PIPELET_NEXT;
+    }
+}
+
+/**
+ * checkAgent - verifies associate's credentials and authorizes for a new session
+ * @param employeeId
+ * @param passcode
+ * @param storeId
+ */
+function checkAgent(employeeId,passcode,storeId) {
+
+    var log : Log = Logger.getLogger("instore-audit-trail");
+    log.info("CheckAgentForSession: entering script");
+
+    var authorize = new Authorize();
+    //Verify Associate's credentials and authorization
+    authorize.authorizeAndSetDataOnSession(employeeId, passcode,storeId); //empid, passcode, store id
+
+    if (authorize.status == authorize.STATUS_TYPE.BAD_PARAMS) {
+        log.info("CheckAgentForSession: exiting script with bad_params error");
+        return {status : "bad_params"};
+    }
+    if (authorize.httpStatus != 200) {
+        log.info("CheckAgentForSession: exiting script with authorization error");
+        return {status : "authorization_error"};
+    }
+    log.info("CheckAgentForSession: exiting script without error");
+    return {success : true};
+}
+
+module.exports = {
+    checkAgent : checkAgent
+};

@@ -1,0 +1,43 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+* 
+* Extracts the request body
+*
+*   @input RequestBody : String This is a sample comment.
+*   @output RequestObject : Object
+*
+*/
+importPackage( dw.system );
+
+function execute( args : PipelineDictionary ) : Number {
+    var result = extractReqObject(args.RequestBody);
+    if (result.RequestObject) {
+        args.RequestObject = result.RequestObject;
+        return PIPELET_NEXT;
+    } else {
+        return PIPELET_ERROR;
+    }
+}
+
+/**
+ * extractReqObject - extract the requestObject from the requestBody
+ * @param : requestBody
+ */ 
+function extractReqObject(requestBody) {
+    // read pipeline dictionary input parameter
+    // ... = args.ExampleIn;
+    var body : String = requestBody || "";
+    // insert business logic here
+    var object : Object = {};
+    
+    try {
+        object = JSON.parse(body);
+        return {RequestObject : object};
+    } catch(ex) {
+        return {Error : true};
+    }
+}
+
+module.exports = {
+    extractReqObject : extractReqObject
+};

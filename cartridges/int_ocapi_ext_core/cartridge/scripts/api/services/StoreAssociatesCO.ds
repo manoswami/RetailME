@@ -1,0 +1,38 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Retrieves store associates custom object
+* @author jmoody
+**/
+
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.util );
+
+function StoreAssociates () {
+    this.notFound = true;
+    this.storeEmployees;
+    this.employee;
+}
+
+StoreAssociates.prototype.retrieve = function (storeId : String, empId: String) {
+
+    var stores : SeekableIterator = CustomObjectMgr.queryCustomObjects("storeAssociates", "custom.storeId = {0}",null, storeId);
+    if (stores.count == 0) {
+        return;
+    }
+    var storeRecord = stores.next();
+    var associateIDs : String = storeRecord.custom.associateIDs;
+    this.storeEmployees = associateIDs.split(',');
+    
+    var empIndex = "A" + empId;
+    
+    // verify that this employee is in store
+    if (associateIDs.indexOf(empIndex) >= 0) {
+        // now fetch the employee from the 'associates' CO
+        this.employee = CustomObjectMgr.getCustomObject("associates", empIndex);
+        this.notFound = this.employee == null;
+    } else {
+        this.notFound = true;
+    }
+}

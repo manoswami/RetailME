@@ -1,0 +1,42 @@
+/**
+* ©2016-2018 salesforce.com, inc. All rights reserved.
+*
+* ajaxGetAssociates - - return associates assigned to a certain Store (represented as a JSON string)
+*
+*   @input StoreId : String
+*
+*   @output ErrorStatus : String 
+*   @output JSONResponse : String 
+*
+*/
+importPackage( dw.system );
+importPackage( dw.object );
+importPackage( dw.util );
+importPackage( dw.order );
+importPackage( dw.web );
+
+
+function execute( args : PipelineDictionary ) : Number
+{
+    try {
+        var storeObj : CustomObject = CustomObjectMgr.getCustomObject("storeAssociates", args.StoreId);
+        var storeEmployees = !empty(storeObj.custom.associateIDs)?storeObj.custom.associateIDs:"" ;
+        storeEmployees = storeEmployees.split(',');
+        var storeEmployeesObject = [];
+        storeEmployees.forEach(function(employee,idx){
+            var employeeCO : CustomObject = CustomObjectMgr.getCustomObject("associates", employee);
+            if(employeeCO){
+                storeEmployeesObject.push( {id:employee.substring(1, employee.length),
+                                            firstName:employeeCO.custom.firstName,
+                                            lastName:employeeCO.custom.lastName
+                                    });
+            }
+            
+        });
+        args.JSONResponse =JSON.stringify({'httpStatus': 200,'storeEmployees':storeEmployeesObject});
+        return PIPELET_NEXT;
+    }catch(error){
+        args.ErrorStatus = error;
+        return PIPELET_ERROR;
+    }
+}

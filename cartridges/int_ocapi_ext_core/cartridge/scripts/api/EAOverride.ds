@@ -1,0 +1,151 @@
+/**
+* * ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Functions for verification of overrides
+*
+*/
+
+importPackage( dw.system );
+importPackage( dw.catalog );
+importPackage( dw.order );
+importPackage( dw.util );
+
+importScript("int_ocapi_ext_core:api/services/PermissionGroupCO.ds");
+
+function EAOverride() {
+    this.isError = false;
+    this.eaStatusCode = "EA_200";
+    this.allowBasketUpdate = false;
+}
+
+EAOverride.prototype.stringify =  function() {
+    return JSON.stringify(this);
+}
+
+EAOverride.prototype.verifyAuthorization =  function(permissionGroupId : String, productId : String, priceOverrideType : String, priceOverrideValue : String) {
+    try {
+        var permissionGroup = PermissionGroup.retrieve(permissionGroupId);
+        var allowOverride : Boolean = false;
+        
+        if (empty(permissionGroup[permissionGroupId])) {
+            this.eaStatusCode = "EA_EMP_AUTH_4008";
+        } else {
+            // If 'None' (undefined) percentage off restriction is selected in permission groups then it become 1 or 100% (no restrictions)
+            var itemPriceOverrideMaxPercent : Decimal = permissionGroup[permissionGroupId].itemPriceOverrideMaxPercent ? new Decimal(permissionGroup[permissionGroupId].itemPriceOverrideMaxPercent) : new Decimal(1);
+            var itemPriceOverrideValue : Decimal = new Decimal (priceOverrideValue);
+            var product : Product = ProductMgr.getProduct(productId);
+            var productPrice : Decimal = product.priceModel.getPrice().value;
+            var itemPriceOverrideValuePercent : Decimal = new Decimal (0);
+            if (priceOverrideType.equalsIgnoreCase("amount")) {
+                allowOverride = permissionGroup[permissionGroupId].allowItemPriceOverrideByAmount;
+                if (allowOverride) {
+                    if (productPrice > 0) {
+                        if (itemPriceOverrideValue >= 0) {
+                            itemPriceOverrideValuePercent = itemPriceOverrideValue.divide(productPrice);
+                            if (itemPriceOverrideMaxPercent >= itemPriceOverrideValuePercent) {
+                                this.allowBasketUpdate = true;    
+                            } else {
+                                this.eaStatusCode = "EA_PRICE_OVERRIDE_4007";
+                            }
+                        } else {
+                            this.eaStatusCode = "EA_PRICE_OVERRIDE_4008";
+                        }
+                    } else {
+                        this.eaStatusCode = "EA_PRICE_OVERRIDE_4006";
+                    }
+                } else {
+                    this.eaStatusCode = "EA_EMP_AUTH_4008";
+                }
+            } else if (priceOverrideType.equalsIgnoreCase("percentage")) {
+                allowOverride = permissionGroup[permissionGroupId].allowItemPriceOverrideByPercent;
+                if (allowOverride) {
+                    if(itemPriceOverrideValue >= 0) {
+                        // Multiplying itemPriceOverrideMaxPercent by 100 to covert decimal into percentage
+                        if (itemPriceOverrideMaxPercent*100 >= itemPriceOverrideValue) {
+                            this.allowBasketUpdate = true;
+                        } else {
+                            this.eaStatusCode = "EA_PRICE_OVERRIDE_4005";
+                        }
+                    } else {
+                        this.eaStatusCode = "EA_PRICE_OVERRIDE_4009";
+                    }
+                } else {
+                    this.eaStatusCode = "EA_EMP_AUTH_4008";
+                }
+            } else if (priceOverrideType.equalsIgnoreCase("fixed_price")) {
+                allowOverride = permissionGroup[permissionGroupId].allowItemPriceOverrideFixedPrice;
+                if (allowOverride) {
+                    if(itemPriceOverrideValue >= 0) {
+                        this.allowBasketUpdate = true;
+                    } else {
+                        this.eaStatusCode = "EA_PRICE_OVERRIDE_4010";
+                    }
+                } else {
+                    this.eaStatusCode = "EA_EMP_AUTH_4008";
+                }
+            } else {
+                this.eaStatusCode = "EA_PRICE_OVERRIDE_4011";
+            }
+        }
+    } catch (e) {
+        this.eaStatusCode = "EA_EMP_AUTH_4000";
+    }
+}
+
+EAOverride.prototype.verifyAuthorizationForShipping =  function(permissionGroupId : String, shippingMethodPrice : Decimal, priceOverrideType : String, priceOverrideValue : String) {
+    try {
+        var permissionGroup = PermissionGroup.retrieve(permissionGroupId);
+        var allowOverride : Boolean = false;
+        
+        if (empty(permissionGroup[permissionGroupId])) {
+            this.eaStatusCode = "EA_EMP_AUTH_4008";
+        } else {
+            var itemPriceOverrideMaxPercent : Decimal = permissionGroup[permissionGroupId].shippingPriceOverrideMaxPercent ? new Decimal(permissionGroup[permissionGroupId].shippingPriceOverrideMaxPercent) : new Decimal(0);
+            var itemPriceOverrideValue : Decimal = new Decimal (priceOverrideValue);
+            var shippingPrice : Decimal = shippingMethodPrice; //dw.order.ShippingMgr.getShippingCost(shippingMethod, orderValue).value;
+            var itemPriceOverrideValuePercent : Decimal = new Decimal (0);
+
+            if (priceOverrideType.equalsIgnoreCase("amount")) {
+                allowOverride = permissionGroup[permissionGroupId].allowShippingOverrideByAmount;
+                if (allowOverride ) {
+                    if(shippingPrice > 0) {
+                        itemPriceOverrideValuePercent = itemPriceOverrideValue.divide(shippingPrice);
+                        if (itemPriceOverrideMaxPercent >= itemPriceOverrideValue.divide(shippingPrice)) {
+                            this.allowBasketUpdate = true;
+                        } else {
+                            this.eaStatusCode = "EA_PRICE_OVERRIDE_4007";
+                        }
+                    } else {
+                        this.eaStatusCode = "EA_PRICE_OVERRIDE_4012";
+                    }
+                } else {
+                    this.eaStatusCode = "EA_EMP_AUTH_4008";
+                }
+            } else if (priceOverrideType.equalsIgnoreCase("percentage")) {
+                allowOverride = permissionGroup[permissionGroupId].allowShippingOverrideByPercent;
+                if (allowOverride) {
+                    // Multiplying itemPriceOverrideMaxPercent by 100 to covert decimal into percentage
+                    if (itemPriceOverrideMaxPercent*100 >= itemPriceOverrideValue) {
+                        this.allowBasketUpdate = true;
+                    } else {
+                        this.eaStatusCode = "EA_PRICE_OVERRIDE_4005";
+                    }
+                } else {
+                    this.eaStatusCode = "EA_EMP_AUTH_4008";
+                }
+            } else if (priceOverrideType.equalsIgnoreCase("fixed_price")) {
+                allowOverride = permissionGroup[permissionGroupId].allowShippingOverrideFixed;
+                if (allowOverride) {
+                    this.allowBasketUpdate = true;
+                } else {
+                    this.eaStatusCode = "EA_EMP_AUTH_4008";
+                }
+            } else {
+                this.eaStatusCode = "EA_PRICE_OVERRIDE_4011";
+            }
+        }
+    } catch (e) {
+        var errorMessage = e;
+        this.eaStatusCode = "EA_EMP_AUTH_4000";
+    }
+};

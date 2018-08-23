@@ -1,0 +1,1914 @@
+/**
+* ©2013-2018 salesforce.com, inc. All rights reserved.
+*
+* Object literal functions
+*/
+
+importPackage( dw.system );
+importPackage( dw.object );
+
+
+/** 
+ * Helper object for retrieving/converting DW objects into JSON serializable ECMA primitive and object data types  
+ */
+var ObjectTypeValue = (function() {
+    
+    var otv = {};
+    
+    // private helper functions
+    function getStringItem( o ) {
+        return o.valueOf();
+    }
+    
+    function getNumberItem( o ) {
+        return o.valueOf();
+    }
+    
+    function getDateItem( o ) {
+        return o;
+    }
+    
+    function getArrayItem( o, deep ) {
+        
+        var items : Array = new Array(), 
+            i, 
+            len = o.length;
+        var isBaseType = len ? !!~ObjectLiteral.baseObjects.indexOf(ObjectLiteral.getClassType( o[0] )) : false; 
+        var rx = new RegExp("^\\[(.+?)\\s(.+?)=(.+?)\\]$");
+        for ( i = 0; i < len; i++ ) {
+            
+            if ( isBaseType ) {
+                items.push( o[i] );
+            }
+            else if (deep) {
+                items.push( ObjectLiteral.create(o[i]) );
+            }
+            else {
+                var dwo = {};
+                var match = o[i].valueOf().match( rx );
+                if ( match && match.length > 3 ) {
+                    dwo[match[2]] = match[3];
+                }
+                items.push( dwo );
+            }
+        }
+        
+        return items;
+    }
+        
+    
+    /* Demandware attribute definition value types */
+            
+    otv[ObjectAttributeDefinition.VALUE_TYPE_STRING.toString()] = getStringItem;    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_ENUM_OF_STRING.toString()] = getStringItem;    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_TEXT.toString()] = getStringItem;    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_EMAIL.toString()] = getStringItem;    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_PASSWORD.toString()] = getStringItem;    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_INT.toString()] = getNumberItem;
+    otv[ObjectAttributeDefinition.VALUE_TYPE_NUMBER.toString()] = getNumberItem;    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_ENUM_OF_INT.toString()] = getNumberItem;    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_DATE.toString()] = getDateItem;    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_DATETIME.toString()] = getDateItem;    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_SET_OF_STRING.toString()] = getArrayItem;    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_SET_OF_INT.toString()] = getArrayItem;    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_SET_OF_NUMBER.toString()] = getArrayItem;
+    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_HTML.toString()] = function ( o ) {
+        return o.markup;
+    };
+    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_IMAGE.toString()] = function ( o ) {
+        return {
+            alt : o.alt,
+            title : o.title,
+            url : o.URL.toString()
+        };
+        
+    };
+    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_BOOLEAN.toString()] = function ( o ) {
+        
+        return o.valueOf();
+        
+    };
+    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_MONEY.toString()] = function ( o ) {
+    
+        return {
+            stringValue : o.toFormattedString(),
+            numberValue : o.toNumberString()
+        }
+        
+    };
+    
+    otv[ObjectAttributeDefinition.VALUE_TYPE_QUANTITY.toString()] = function ( o ) {
+        
+        return o.valueOf();
+        
+    };
+    
+    /*
+    * Demandware system object value types
+    */
+    otv["Iterator"]    = function( o, deep ) {
+        return getArrayItem( o.asList(), deep );
+    } 
+    otv["SeekableIterator"]    = otv["Iterator"];    
+    otv["Collection"]        = getArrayItem;
+    otv["List"]             = getArrayItem;
+    otv["ArrayList"]        = getArrayItem;    
+    otv["javaarray"]        = getArrayItem;
+    otv["number"]            = getNumberItem;
+    
+    otv["ExtensibleObjectAttributes"] = function( o ) {
+        var obj = {}, p;
+        
+        for (var p in o ) {
+            obj[p] = o[p].valueOf();
+        }
+        return obj;
+    };
+    
+    return otv;
+})();
+
+/**
+ * Creates a new ObjectLiteral
+ *
+ * @class Creates a new JSON serializable ECMA type javascript object from a Demandware system object (or another ECMA object).
+ * @param source Object to convert to JSON serializable ECMA object
+ * @param options Not currently used. Provided for ability to pass in object specific options.
+ * 
+ * @example
+ * var obj = new ObjectLiteral(product);
+ */
+function ObjectLiteral( source, options ) {
+    var self = this,
+        _options = options || {},
+        _source = source,
+        _loaded = false;
+    
+    /* internal functions */    
+    
+    function getValueOf( o ) {
+        var dwo = {},
+            // match on string formatted as [(PrototypeName) (uniqueIdentifier)=(uniqueValue)]
+            match = o.valueOf().match(new RegExp("^\\[(.+?)\\s(.+?)=(.+?)\\]$"));
+        
+        if ( match && match.length > 3 ) {
+            dwo[match[2]] = match[3];
+        }
+        
+        return dwo;
+    }
+    
+    function setAttributeValues( o ) {
+        if ( !( "describe" in o ) ) {
+            return;
+        }
+        
+        self.custom = self.custom || {};
+        
+        var def = o.describe();
+        
+        if (!def) {
+            return;
+        }        
+        var    atts = def.attributeDefinitions,
+            len = atts.length,
+            att, otv, i;
+        
+        try {
+            for ( i = 0; i < len; i++ ) {
+                
+                att = atts[i];
+                
+                if (!o.hasOwnProperty(att.ID) && !o.custom.hasOwnProperty(att.ID)) {
+                    continue;
+                } 
+                    
+                var val, target;
+                
+                if ( att.system ) {    
+                    target = self;
+                    val = o[att.ID];
+                } else {
+                    target = self.custom;
+                    val = o.custom[att.ID];
+                }
+                
+                if ( !val ) {
+                    target[att.ID] = null;
+                    continue;
+                }
+                var deep = ObjectLiteral.safeFieldMap.hasOwnProperty(self.type) && ~ObjectLiteral.safeFieldMap[self.type].indexOf( p ); 
+                
+                target[att.ID] = ObjectTypeValue[att.valueTypeCode.toString()].call(self, val, deep );
+            }
+        }
+        catch (ex) {
+            Logger.error("\n\nERROR BUILDING PROPERTIES FROM ATTRIBUTES: " + ex + "\n\n");
+        }
+    }
+    
+    function setPropertyValues( o ) {
+        var val = null, p, type, deep = false;
+        
+        try {
+                        
+            for ( p in o ) {
+                // not ideal to make a try/catch part of the normal logic to set value, but
+                // checking o.hasOwnProperty(p) causes most fields to be omitted. For some reason,
+                // some fields (such as Customer.salutation) throw a "dynamic property not found"
+                // exception when attempting to access as property name index 
+                try { val = o[p]; } catch(ex) { self[p] = null; }
+                
+                if (val==null) {
+                    self[p] = null;
+                    continue;
+                }
+                
+                if ( (typeof val) != "function" ) {
+                
+                    type = ObjectLiteral.getClassType( val );
+                    deep = ObjectLiteral.safeFieldMap.hasOwnProperty(self.type) && ~ObjectLiteral.safeFieldMap[self.type].indexOf( p );
+                    
+                    if ( ObjectTypeValue.hasOwnProperty( type ) ) {
+
+                        // if value conversion exists for type, call conversion function
+                        self[p] = ObjectTypeValue[ type ].call(self, val,  deep);
+                        
+                    }
+                    else if ( ~ObjectLiteral.baseObjects.indexOf( type ) ) {
+                        // if the object class name is a "base" object, set and return
+                        self[p] = val;
+                         
+                    }
+                    else if ( !deep ) {
+                        // value is not convertable to a "base" type. 
+                        // if field results in recursive stack overflow,
+                        // return { uniqueIdentifier : uniqueValue } 
+                        
+                        self[p] = getValueOf( val );
+                        
+                    }
+                    else {
+                        
+                        self[p] = ObjectLiteral.create( val );
+                    }
+                                    
+                }                
+            }
+                
+        }
+        catch (ex) {
+            Logger.error("\n\nERROR BUILDING PROPERTIES! " + ex + "\n\nPROPERTY: '" + p + "'\n\n" + ex.lineNumber );
+        }    
+    }
+    
+
+    // initialize public object properties
+    /**
+    * Reference to the original source object
+    */
+    this.source = _source;
+    
+    /**
+    * Convenience property to identify source object type 
+    */
+    this.type = ObjectLiteral.getClassType(_source);
+    
+    /**
+    * Loads the object literal from the source provided during instantiation
+    */
+    this.load = function( ) {
+        
+        // assign public property values using object properties
+        setPropertyValues(_source);
+        
+        // assign public property values using DW object attributes
+        setAttributeValues(_source);
+        _loaded = true;
+        return self;
+        
+    }
+    
+    /**
+    * Defers loading of literal object until JSON.stringify() is called on this object
+    */
+    this.toJSON = function() {
+        if (!_loaded) {
+            return self.load();
+        }
+        return self;
+    }
+    
+}
+
+
+/**
+ * Array of object type strings representing JSON serializable object type names. May be expanded. 
+ * @static
+ */
+ObjectLiteral.baseObjects = ["undefined", "object", "boolean", "number", "string", "xml", "date", "array"];
+
+/**
+ * Helper method to retrieve object type (class name) and value
+ * @param obj Object to retrieve type and value for
+ * @static
+ */
+ObjectLiteral.getClassType = function( obj ) {
+    
+    var RX_CLASS = new RegExp("^\\[(.+?)\\s.*\\]$"),
+        type = "object";
+                
+    // no need to go any further if the object is null
+    if (obj == null) {
+        return type;
+    }
+        
+    type = ObjectLiteral.getClassName( obj );
+        
+    if ( type == "javaobject" ) {
+        var match = obj.toString().match( RX_CLASS );
+        // if pattern does not match, use the object's value to retrieve type
+        if ( !match ) {
+            type = ObjectLiteral.getClassName( obj.valueOf() );
+        }
+        else {
+            type = match[1];
+        }        
+    }
+    
+    return type;
+};
+
+
+/**
+ * Retrieves the object instances constructor name
+ * @param obj Object from which to determine class name
+ * @static
+ */
+ObjectLiteral.getClassName = function( obj ) {
+    return {}.toString.call(obj).toString().match(new RegExp("^\\[object (.+?)\\]$"))[1].toLowerCase();
+};
+
+/**
+ * Static wrapper method to create ObjectLiteral instance
+ * @param source Object to convert to JSON serializable ECMA object
+ * @static
+ */
+ObjectLiteral.create = function( source, options ) {
+    var type = ObjectLiteral.getClassType( source ),
+        options = options || {};    
+    if ( ~ObjectLiteral.baseObjects.indexOf( type ) ) {
+        return source.valueOf();
+    }
+    else if (ObjectTypeValue.hasOwnProperty( type )) {
+        var otv = ObjectTypeValue[type].call( null, source, options.deep );
+        
+        return otv;
+    }
+    
+    return new ObjectLiteral( source, options );
+};
+
+ObjectLiteral.safeFieldMap = {
+    "AmountDiscount": [
+        "amount"
+    ],
+    "ApproachingDiscount": [
+        "conditionThreshold",
+        "discount",
+        "distanceFromConditionThreshold",
+        "merchandiseTotal"
+    ],
+    "LineItemCtnr": [
+        "adjustedMerchandizeTotalGrossPrice",
+        "adjustedMerchandizeTotalNetPrice",
+        "adjustedMerchandizeTotalPrice",
+        "adjustedMerchandizeTotalTax",
+        "adjustedShippingTotalGrossPrice",
+        "adjustedShippingTotalNetPrice",
+        "adjustedShippingTotalPrice",
+        "adjustedShippingTotalTax",
+        //"allLineItems",
+        //"allProductLineItems",
+        //"allProductQuantities",
+        //"allShippingPriceAdjustments",
+        "billingAddress",
+        "bonusDiscountLineItems",
+        "couponLineItems",
+        "currencyCode",
+        "customer",
+        "customerEmail",
+        "customerName",
+        "customerNo",
+        "defaultShipment",
+        "giftCertificateLineItems",
+        "giftCertificatePaymentInstruments",
+        "giftCertificateTotalGrossPrice",
+        "giftCertificateTotalNetPrice",
+        "giftCertificateTotalPrice",
+        "giftCertificateTotalTax",
+        "merchandizeTotalGrossPrice",
+        "merchandizeTotalNetPrice",
+        "merchandizeTotalPrice",
+        "merchandizeTotalTax",
+        "paymentInstruments",
+        "priceAdjustments",
+        "productLineItems",
+        "productQuantities",
+        "productQuantityTotal",
+        "shipments",
+        "shippingPriceAdjustments",
+        "shippingTotalGrossPrice",
+        "shippingTotalNetPrice",
+        "shippingTotalPrice",
+        "shippingTotalTax",
+        "totalGrossPrice",
+        "totalNetPrice",
+        "totalTax"
+    ],
+    "BonusChoiceDiscount": [
+        //"bonusProducts",
+        "maxBonusItems"
+    ],
+    "BonusDiscount": [
+        //"bonusProducts"
+    ],
+    "Campaign": [
+        "active",
+        "coupons",
+        "customerGroups",
+        "description",
+        "enabled",
+        "endDate",
+        "ID",
+        //"promotions",
+        "sourceCodeGroups",
+        "startDate"
+    ],
+    "Coupon": [
+        "codePrefix",
+        "enabled",
+        "ID",
+        "nextCouponCode",
+        //"promotions",
+        "redemptionLimitPerCode",
+        "redemptionLimitPerCustomer",
+        "redemptionLimitPerTimeFrame",
+        "redemptionLimitTimeFrame",
+        "type"
+    ],
+    "CouponRedemption": [
+        "customerEmail",
+        "orderNo",
+        "redemptionDate"
+    ],
+    "Discount": [
+        "promotion",
+        "quantity",
+        "type"
+    ],
+    "DiscountPlan": [
+        "approachingOrderDiscounts",
+        "bonusDiscounts",
+        //"lineItemCtnr",
+        "orderDiscounts"
+    ],
+    "FixedPriceDiscount": [
+        "fixedPrice"
+    ],
+    "FixedPriceShippingDiscount": [
+        "fixedPrice"
+    ],
+    
+    
+    "PercentageDiscount": [
+        "percentage"
+    ],
+    "PercentageOptionDiscount": [
+        "percentage"
+    ],
+    "PriceBookPriceDiscount": [
+        "priceBookID"
+    ],
+    "Promotion": [
+        "active",
+        "basedOnCoupons",
+        "basedOnCustomerGroups",
+        "basedOnSourceCodes",
+        "calloutMsg",
+        "campaign",
+        "coupons",
+        "custom",
+        "customerGroups",
+        "details",
+        "enabled",
+        "endDate",
+        "exclusivity",
+        "ID",
+        "image",
+        "lastModified",
+        "name",
+        "promotionClass",
+        "qualifierMatchMode",
+        "rank",
+        "sourceCodeGroups",
+        "startDate"
+    ],
+    "PromotionPlan": [
+        "orderPromotions",
+        "productPromotions",
+        "promotions",
+        "shippingPromotions"
+    ],
+    "SlotContent": [
+        "calloutMsg",
+        "content",
+        "custom",
+        "slotID"
+    ],
+    "SourceCodeGroup": [
+        "ID",
+        "priceBooks"
+    ],
+    "SourceCodeInfo": [
+        "code",
+        "group",
+        "status"
+    ],
+
+    "TotalFixedPriceDiscount": [
+        "totalFixedPrice"
+    ],
+    "Catalog": [
+        "description",
+        "displayName",
+        "ID",
+        "root"
+    ],
+
+    "Category": [
+        //"allRecommendations",
+        //"categoryAssignments",
+        "defaultSortingRule",
+        "description",
+        "displayName",
+        "ID",
+        "image",
+        //"incomingCategoryLinks",
+        "online",
+        //"onlineCategoryAssignments",
+        "onlineFlag",
+        "onlineFrom",
+        //"onlineIncomingCategoryLinks",
+        //"onlineOutgoingCategoryLinks",
+        //"onlineProducts",
+        //"onlineSubCategories",
+        "onlineTo",
+        //"orderableRecommendations",
+        //"outgoingCategoryLinks",
+        "pageDescription",
+        "pageKeywords",
+        "pageTitle",
+        "pageURL",
+        //"parent",
+        //"productAttributeModel",
+        //"products",
+        //"recommendations",
+        "root",
+        "searchPlacement",
+        "searchRank",
+        "siteMapChangeFrequency",
+        "siteMapPriority",
+        //"subCategories",
+        "template",
+        "thumbnail",
+        "topLevel"
+    ],
+    "CategoryAssignment": [
+        "calloutMsg",
+        //"category",
+        "image",
+        "longDescription",
+        "name",
+        //"product",
+        "shortDescription"
+    ],
+    "CategoryLink": [
+        "sourceCategory",
+        "targetCategory",
+        "typeCode"
+    ],
+    "PriceBook": [
+        "currencyCode",
+        "description",
+        "displayName",
+        "ID",
+        "online",
+        "onlineFlag",
+        "onlineFrom",
+        "onlineTo",
+        "parentPriceBook"
+    ],
+
+    "Product": [
+        "activeData",
+        //"allCategories",
+        //"allCategoryAssignments",
+        //"allIncomingProductLinks",
+        //"allProductLinks",
+        "assignedToSiteCatalog",
+        //"attributeModel",
+        "availabilityModel",
+        "brand",
+        "bundle",
+        "bundled",
+        "bundledProducts",
+        //"bundles",
+        //"categories",
+        "categorized",
+        //"categoryAssignments",
+        //"classificationCategory",
+        "EAN",
+        "ID",
+        //"incomingProductLinks",
+        "longDescription",
+        "manufacturerName",
+        "manufacturerSKU",
+        "master",
+        "minOrderQuantity",
+        "name",
+        "online",
+        //"onlineCategories",
+        "onlineFlag",
+        "onlineFrom",
+        "onlineTo",
+        "optionModel",
+        "optionProduct",
+        //"orderableRecommendations",
+        "pageDescription",
+        "pageKeywords",
+        "pageTitle",
+        "pageURL",
+        "priceModel",
+        //"primaryCategory",
+        //"primaryCategoryAssignment",
+        "product",
+        "productLinks",
+        "productSet",
+        "productSetProduct",
+        "productSetProducts",
+        //"productSets",
+        //"recommendations",
+        "searchable",
+        "searchableFlag",
+        "searchPlacement",
+        "searchRank",
+        "shortDescription",
+        "siteMapChangeFrequency",
+        "siteMapPriority",
+        "stepQuantity",
+        "taxClassID",
+        "template",
+        "unit",
+        "UPC",
+        "variant",
+        //"variants",
+        //"variationModel"
+    ],
+    "ProductActiveData": [
+        "availableDate",
+        "avgGrossMarginPercentDay",
+        "avgGrossMarginPercentMonth",
+        "avgGrossMarginPercentWeek",
+        "avgGrossMarginPercentYear",
+        "avgGrossMarginValueDay",
+        "avgGrossMarginValueMonth",
+        "avgGrossMarginValueWeek",
+        "avgGrossMarginValueYear",
+        "avgSalesPriceDay",
+        "avgSalesPriceMonth",
+        "avgSalesPriceWeek",
+        "avgSalesPriceYear",
+        "conversionDay",
+        "conversionMonth",
+        "conversionWeek",
+        "conversionYear",
+        "costPrice",
+        "daysAvailable",
+        "impressionsDay",
+        "impressionsMonth",
+        "impressionsWeek",
+        "impressionsYear",
+        "lookToBookRatioDay",
+        "lookToBookRatioMonth",
+        "lookToBookRatioWeek",
+        "lookToBookRatioYear",
+        "ordersDay",
+        "ordersMonth",
+        "ordersWeek",
+        "ordersYear",
+        "returnRate",
+        "revenueDay",
+        "revenueMonth",
+        "revenueWeek",
+        "revenueYear",
+        "salesVelocityDay",
+        "salesVelocityMonth",
+        "salesVelocityWeek",
+        "salesVelocityYear",
+        "unitsDay",
+        "unitsMonth",
+        "unitsWeek",
+        "unitsYear",
+        "viewsDay",
+        "viewsMonth",
+        "viewsWeek",
+        "viewsYear"
+    ],
+    "ProductAttributeModel": [
+        //"attributeGroups",
+        //"orderRequiredAttributeDefinitions",
+        //"visibleAttributeGroups"
+    ],
+    "ProductAvailabilityLevels": [
+        "backorder",
+        "count",
+        "inStock",
+        "notAvailable",
+        "preorder"
+    ],
+    "ProductAvailabilityModel": [
+        "availability",
+        "availabilityStatus",
+        "inStock",
+        "inventoryRecord",
+        "orderable",
+        "SKUCoverage",
+        "timeToOutOfStock"
+    ],
+    "ProductInventoryList": [
+        "defaultInStockFlag",
+        "description",
+        "ID"
+    ],
+
+    "ProductInventoryRecord": [
+        "allocation",
+        "allocationResetDate",
+        "ATS",
+        "backorderable",
+        "inStockDate",
+        "perpetual",
+        "preorderable",
+        "preorderBackorderAllocation",
+        "stockLevel",
+        "turnover"
+    ],
+    "ProductLink": [
+        "sourceProduct",
+        "targetProduct",
+        "typeCode"
+    ],
+    "ProductOption": [
+        "defaultValue",
+        "description",
+        "displayName",
+        "htmlName",
+        "ID",
+        "image",
+        "optionValues"
+    ],
+    "ProductOptionModel": [
+        "options"
+    ],
+    "ProductOptionValue": [
+        "description",
+        "displayValue",
+        "ID",
+        "productIDModifier"
+    ],
+    "ProductPriceInfo": [
+        "percentage",
+        "price",
+        "priceBook",
+        "priceInfo"
+    ],
+    "ProductPriceModel": [
+        "basePriceQuantity",
+        "maxPrice",
+        "minPrice",
+        "price",
+        "priceInfo",
+        "priceRange",
+        "priceTable"
+    ],
+    "ProductPriceTable": [
+        "quantities"
+    ],
+    "ProductSearchHit": [
+        //"firstRepresentedProduct",
+        //"lastRepresentedProduct",
+        "maxPrice",
+        "minPrice",
+        "priceRange",
+        //"product",
+        //"representedProducts"
+    ],
+    "ProductSearchModel": [
+        //"category",
+        "categoryID",
+        "categorySearch",
+        //"deepestCommonCategory",
+        "orderableProductsOnly",
+        "priceMax",
+        "priceMin",
+        "productID",
+        "products",
+        //"productSearchHits",
+        "promotionID",
+        "recursiveCategorySearch",
+        "refinedByCategory",
+        "refinedByPrice",
+        "refinedCategorySearch",
+        "refinements",
+        "sortingRule",
+        "suggestedSearchPhrase",
+        "suggestedSearchPhrases"
+    ],
+    "ProductSearchRefinementDefinition": [
+        "categoryRefinement",
+        "priceRefinement"
+    ],
+    "ProductSearchRefinements": [
+        "categoryRefinementDefinition",
+        "priceRefinementDefinition"
+    ],
+    "ProductSearchRefinementValue": [
+        "valueFrom",
+        "valueTo"
+    ],
+    "ProductVariationAttribute": [
+        "attributeID",
+        "displayName",
+        "ID"
+    ],
+    "ProductVariationAttributeValue": [
+        "description",
+        "displayValue",
+        "ID",
+        "value"
+    ],
+    "ProductVariationModel": [
+        //"defaultVariant",
+        //"master",
+        "productVariationAttributes",
+        //"selectedVariant",
+        //"variants"
+    ],
+    "Recommendation": [
+        "calloutMsg",
+        "catalog",
+        "image",
+        "longDescription",
+        "name",
+        "recommendationType",
+        //"recommendedItem",
+        "recommendedItemID",
+        "shortDescription",
+        //"sourceItem",
+        "sourceItemID"
+    ],
+    "SearchModel": [
+        "count",
+        "emptyQuery",
+        "refinedByAttribute",
+        "refinedSearch",
+        "searchPhrase"
+    ],
+    "SearchRefinementDefinition": [
+        "attributeID",
+        "attributeRefinement",
+        "cutoffThreshold",
+        "displayName",
+        "valueTypeCode"
+    ],
+    "SearchRefinements": [
+        "allRefinementDefinitions",
+        "refinementDefinitions"
+    ],
+    "SearchRefinementValue": [
+        "description",
+        "displayValue",
+        "hitCount",
+        "ID",
+        "presentationID",
+        "value"
+    ],
+    "SortingOption": [
+        "description",
+        "displayName",
+        "ID",
+        "sortingRule"
+    ],
+    "SortingRule": [
+        "ID"
+    ],
+    "Store": [
+        "address1",
+        "address2",
+        "city",
+        "countryCode",
+        "email",
+        "fax",
+        "ID",
+        "image",
+        "latitude",
+        "longitude",
+        "name",
+        "phone",
+        "postalCode",
+        "stateCode",
+        "storeEvents",
+        "storeHours"
+    ],
+    
+    "Variant": [
+        "activeData",
+        //"allCategories",
+        //"allCategoryAssignments",
+        //"allIncomingProductLinks",
+        //"allProductLinks",
+        "assignedToSiteCatalog",
+        //"attributeModel",
+        "availabilityModel",
+        "brand",
+        "bundle",
+        "bundled",
+        "bundledProducts",
+        //"bundles",
+        //"categories",
+        "categorized",
+        //"categoryAssignments",
+        //"classificationCategory",
+        "EAN",
+        "ID",
+        //"incomingProductLinks",
+        "longDescription",
+        "manufacturerName",
+        "manufacturerSKU",
+        "master",
+        "minOrderQuantity",
+        "name",
+        "online",
+        //"onlineCategories",
+        "onlineFlag",
+        "onlineFrom",
+        "onlineTo",
+        "optionModel",
+        "optionProduct",
+        //"orderableRecommendations",
+        "pageDescription",
+        "pageKeywords",
+        "pageTitle",
+        "pageURL",
+        "priceModel",
+        //"primaryCategory",
+        //"primaryCategoryAssignment",
+        "product",
+        "productLinks",
+        "productSet",
+        "productSetProduct",
+        "productSetProducts",
+        //"productSets",
+        //"recommendations",
+        "searchable",
+        "searchableFlag",
+        "searchPlacement",
+        "searchRank",
+        "shortDescription",
+        "siteMapChangeFrequency",
+        "siteMapPriority",
+        "stepQuantity",
+        "taxClassID",
+        "template",
+        "unit",
+        "UPC",
+        "variant",
+        //"variants",
+        //"variationModel"
+        "custom",
+        "image",
+        //"masterProduct"
+    ],
+    /*
+    "Content": [
+        //"classificationFolder",
+        "description",
+        //"folders",
+        "ID",
+        "name",
+        "online",
+        "onlineFlag",
+        "pageDescription",
+        "pageKeywords",
+        "pageTitle",
+        "pageURL",
+        "searchable",
+        "searchableFlag",
+        "siteMapChangeFrequency",
+        "siteMapPriority",
+        "template"
+    ],
+    "ContentSearchModel": [
+        "content",
+        "contentID",
+        "deepestCommonFolder",
+        "folder",
+        "folderID",
+        "folderSearch",
+        "recursiveFolderSearch",
+        "refinedByFolder",
+        "refinedFolderSearch",
+        "refinements"
+    ],
+    "ContentSearchRefinementDefinition": [
+        "folderRefinement"
+    ],
+    "ContentSearchRefinements": [
+        "folderRefinementDefinition",
+        "matchingFolders"
+    ],
+    "ContentSearchRefinementValue": [],
+    "Folder": [
+        "content",
+        "description",
+        "displayName",
+        "ID",
+        "online",
+        "onlineContent",
+        "onlineSubFolders",
+        "pageDescription",
+        "pageKeywords",
+        "pageTitle",
+        "pageURL",
+        "parent",
+        "root",
+        "subFolders",
+        "template"
+    ],
+    "Library": [
+        "displayName",
+        "ID",
+        "root"
+    ],
+    */
+    "MarkupText": [
+        "markup",
+        "source"
+    ],
+    "MediaFile": [
+        "absURL",
+        "alt",
+        "httpsURL",
+        "httpURL",
+        "title",
+        "URL",
+        "viewType"
+    ],
+    "AddressBook": [
+        "addresses",
+        "preferredAddress"
+    ],
+    "Credentials": [
+        "enabled",
+        "enabledFlag",
+        "locked",
+        "login",
+        "passwordAnswer",
+        "passwordQuestion",
+        "remainingLoginAttempts"
+    ],
+    "Customer": [
+        "activeData",
+        "addressBook",
+        "profile",
+        "anonymous",
+        "authenticated",
+        "customerGroups",
+        "ID",
+        "note",
+        "orderHistory",
+        "registered"
+    ],
+    "CustomerActiveData": [
+        "avgOrderValue",
+        "discountValueWithCoupon",
+        "discountValueWithoutCoupon",
+        "giftOrders",
+        "giftUnits",
+        "lastOrderDate",
+        "orders",
+        "orderValue",
+        "orderValueMonth",
+        "productMastersOrdered",
+        "productsAbandonedMonth",
+        "productsOrdered",
+        "productsViewedMonth",
+        "returns",
+        "returnValue",
+        "sourceCodeOrders",
+        "topCategoriesOrdered",
+        "visitsMonth",
+        "visitsWeek",
+        "visitsYear"
+    ],
+    "CustomerAddress": [
+        "address1",
+        "address2",
+        "city",
+        "companyName",
+        "countryCode",
+        "firstName",
+        "fullName",
+        "ID",
+        "jobTitle",
+        "lastName",
+        "phone",
+        "postalCode",
+        "postBox",
+        "salutation",
+        "secondName",
+        "stateCode",
+        "suffix",
+        "suite",
+        "title"
+    ],
+    "CustomerGroup": [
+        "description",
+        "ID",
+        "ruleBased"
+    ],
+    "CustomerPaymentInstrument": [
+        "bankAccountDriversLicense",
+        "bankAccountNumber",
+        "creditCardNumber"
+    ],
+    "OrderHistory": [
+        "orderCount"
+    ],
+    "ProductList": [
+        "anonymous",
+        "coRegistrant",
+        "currentShippingAddress",
+        "description",
+        "eventCity",
+        "eventCountry",
+        "eventDate",
+        "eventState",
+        "eventType",
+        "exportStatus",
+        "giftCertificateItem",
+        "ID",
+        "items",
+        "lastExportTime",
+        "name",
+        "owner",
+        "postEventShippingAddress",
+        "productItems",
+        "public",
+        "publicItems",
+        "purchases",
+        "registrant",
+        "shippingAddress",
+        "type"
+    ],
+    "ProductListItem": [
+        "ID",
+        //"list",
+        "priority",
+        "product",
+        "productID",
+        "productOptionModel",
+        "public",
+        "purchasedQuantity",
+        "purchasedQuantityValue",
+        "purchases",
+        "quantity",
+        "quantityValue",
+        "type"
+    ],
+    "ProductListItemPurchase": [
+        //"item",
+        "orderNo",
+        "purchaseDate",
+        "purchaserName",
+        "quantity"
+    ],
+
+    "ProductListRegistrant": [
+        "email",
+        "firstName",
+        "lastName",
+        "role"
+    ],
+    "Profile": [
+        "addressBook",
+        "birthday",
+        "companyName",
+        "credentials",
+        //"customer",
+        "customerNo",
+        "email",
+        "fax",
+        "female",
+        "firstName",
+        "gender",
+        "jobTitle",
+        "lastLoginTime",
+        "lastName",
+        "lastVisitTime",
+        "male",
+        "nextBirthday",
+        "phoneBusiness",
+        "phoneHome",
+        "phoneMobile",
+        "preferredLocale",
+        "previousLoginTime",
+        "previousVisitTime",
+        "salutation",
+        "secondName",
+        "suffix",
+        "taxID",
+        "taxIDMasked",
+        "taxIDType",
+        "title"
+    ],
+
+    "ActiveData": [
+        "custom"
+    ],
+
+    "CustomObject": [
+        "custom",
+        "type"
+    ],
+
+    "ExtensibleObject": [
+        "custom"
+    ],
+    "Note": [
+        "createdBy",
+        "creationDate",
+        "subject",
+        "text"
+    ],
+    "ObjectAttributeDefinition": [
+        //"attributeGroups",
+        "defaultValue",
+        "displayName",
+        "ID",
+        "key",
+        "multiValueType",
+        "objectTypeDefinition",
+        "system",
+        "unit",
+        "values",
+        "valueTypeCode"
+    ],
+    "ObjectAttributeGroup": [
+        "attributeDefinitions",
+        "description",
+        "displayName",
+        "ID",
+        "objectTypeDefinition",
+        "system"
+    ],
+    "ObjectAttributeValueDefinition": [
+        "displayValue",
+        "value"
+    ],
+    "ObjectTypeDefinition": [
+        //"attributeDefinitions",
+        //"attributeGroups",
+        "displayName",
+        "ID",
+        "system"
+    ],
+    "PersistentObject": [
+        "creationDate",
+        "lastModified",
+        "UUID"
+    ],
+    "Basket": [
+        "orderNoBeingEdited",
+        "adjustedMerchandizeTotalGrossPrice",
+        "adjustedMerchandizeTotalNetPrice",
+        "adjustedMerchandizeTotalPrice",
+        "adjustedMerchandizeTotalTax",
+        "adjustedShippingTotalGrossPrice",
+        "adjustedShippingTotalNetPrice",
+        "adjustedShippingTotalPrice",
+        "adjustedShippingTotalTax",
+        //"allLineItems",
+        //"allProductLineItems",
+        //"allProductQuantities",
+        //"allShippingPriceAdjustments",
+        "billingAddress",
+        "bonusDiscountLineItems",
+        "couponLineItems",
+        "currencyCode",
+        "customer",
+        "customerEmail",
+        "customerName",
+        "customerNo",
+        "defaultShipment",
+        "giftCertificateLineItems",
+        "giftCertificatePaymentInstruments",
+        "giftCertificateTotalGrossPrice",
+        "giftCertificateTotalNetPrice",
+        "giftCertificateTotalPrice",
+        "giftCertificateTotalTax",
+        "merchandizeTotalGrossPrice",
+        "merchandizeTotalNetPrice",
+        "merchandizeTotalPrice",
+        "merchandizeTotalTax",
+        "paymentInstruments",
+        "priceAdjustments",
+        "productLineItems",
+        "productQuantities",
+        "productQuantityTotal",
+        "shipments",
+        "shippingPriceAdjustments",
+        "shippingTotalGrossPrice",
+        "shippingTotalNetPrice",
+        "shippingTotalPrice",
+        "shippingTotalTax",
+        "totalGrossPrice",
+        "totalNetPrice",
+        "totalTax"
+    ],
+    "BonusDiscountLineItem": [
+        "bonusProductLineItems",
+        "bonusProducts",
+        "maxBonusItems",
+        "promotion",
+        "promotionID",
+        "basePrice",
+        "grossPrice",
+        //"lineItemCtnr",
+        "lineItemText",
+        "netPrice",
+        "price",
+        "priceValue",
+        "tax",
+        "taxClassID",
+        "taxRate"
+
+    ],
+    "CouponLineItem": [
+        "applied",
+        "basedOnCampaign",
+        "couponCode",
+        "priceAdjustments",
+        "statusCode",
+        "valid",
+        "basePrice",
+        "grossPrice",
+        //"lineItemCtnr",
+        "lineItemText",
+        "netPrice",
+        "price",
+        "priceValue",
+        "tax",
+        "taxClassID",
+        "taxRate"
+    ],
+    "GiftCertificate": [
+        "amount",
+        "balance",
+        "description",
+        "enabled",
+        "giftCertificateCode",
+        "maskedGiftCertificateCode",
+        "merchantID",
+        "message",
+        "recipientEmail",
+        "recipientName",
+        "senderName",
+        "status"
+    ],
+    "GiftCertificateLineItem": [
+        "giftCertificateID",
+        "message",
+        "productListItem",
+        "recipientEmail",
+        "recipientName",
+        "senderName",
+        //"shipment",
+        "basePrice",
+        "grossPrice",
+        //"lineItemCtnr",
+        "lineItemText",
+        "netPrice",
+        "price",
+        "priceValue",
+        "tax",
+        "taxClassID",
+        "taxRate"
+    ],
+
+    "LineItem": [
+        "basePrice",
+        "grossPrice",
+        //"lineItemCtnr",
+        "lineItemText",
+        "netPrice",
+        "price",
+        "priceValue",
+        "tax",
+        "taxClassID",
+        "taxRate"
+    ],
+    "Order": [
+        "affiliatePartnerID",
+        "affiliatePartnerName",
+        "cancelCode",
+        "cancelDescription",
+        "confirmationStatus",
+        "createdBy",
+        //"currentOrder",
+        "currentOrderNo",
+        "customerLocaleID",
+        "customerOrderReference",
+        "exportAfter",
+        "exportStatus",
+        "externalOrderNo",
+        "externalOrderStatus",
+        "externalOrderText",
+        "imported",
+        "invoiceNo",
+        "notes",
+        "orderNo",
+        "orderToken",
+        //"originalOrder",
+        "originalOrderNo",
+        "paymentStatus",
+        "remoteHost",
+        "replaceCode",
+        "replaceDescription",
+        //"replacedOrder",
+        "replacedOrderNo",
+        //"replacementOrder",
+        "replacementOrderNo",
+        "shippingStatus",
+        "sourceCode",
+        "sourceCodeGroup",
+        "sourceCodeGroupID",
+        "status",
+        "adjustedMerchandizeTotalGrossPrice",
+        "adjustedMerchandizeTotalNetPrice",
+        "adjustedMerchandizeTotalPrice",
+        "adjustedMerchandizeTotalTax",
+        "adjustedShippingTotalGrossPrice",
+        "adjustedShippingTotalNetPrice",
+        "adjustedShippingTotalPrice",
+        "adjustedShippingTotalTax",
+        //"allLineItems",
+        //"allProductLineItems",
+        //"allProductQuantities",
+        //"allShippingPriceAdjustments",
+        "billingAddress",
+        "bonusDiscountLineItems",
+        "couponLineItems",
+        "currencyCode",
+        "customer",
+        "customerEmail",
+        "customerName",
+        "customerNo",
+        "defaultShipment",
+        "giftCertificateLineItems",
+        "giftCertificatePaymentInstruments",
+        "giftCertificateTotalGrossPrice",
+        "giftCertificateTotalNetPrice",
+        "giftCertificateTotalPrice",
+        "giftCertificateTotalTax",
+        "merchandizeTotalGrossPrice",
+        "merchandizeTotalNetPrice",
+        "merchandizeTotalPrice",
+        "merchandizeTotalTax",
+        "paymentInstruments",
+        "priceAdjustments",
+        "productLineItems",
+        "productQuantities",
+        "productQuantityTotal",
+        "shipments",
+        "shippingPriceAdjustments",
+        "shippingTotalGrossPrice",
+        "shippingTotalNetPrice",
+        "shippingTotalPrice",
+        "shippingTotalTax",
+        "totalGrossPrice",
+        "totalNetPrice",
+        "totalTax"
+    ],
+    "OrderAddress": [
+        "address1",
+        "address2",
+        "city",
+        "companyName",
+        "countryCode",
+        "firstName",
+        "fullName",
+        "jobTitle",
+        "lastName",
+        "phone",
+        "postalCode",
+        "postBox",
+        "salutation",
+        "secondName",
+        "stateCode",
+        "suffix",
+        "suite",
+        "title"
+    ],
+    "OrderPaymentInstrument": [
+        "bankAccountDriversLicense",
+        "bankAccountNumber",
+        "creditCardNumber",
+        //"paymentTransaction",
+        "permanentlyMasked"
+    ],
+
+    "PaymentCard": [
+        "active",
+        "cardType",
+        "description",
+        "image",
+        "name"
+    ],
+    "PaymentInstrument": [
+        "bankAccountDriversLicense",
+        "bankAccountDriversLicenseLastDigits",
+        "bankAccountDriversLicenseStateCode",
+        "bankAccountHolder",
+        "bankAccountNumber",
+        "bankAccountNumberLastDigits",
+        "bankRoutingNumber",
+        "creditCardExpirationMonth",
+        "creditCardExpirationYear",
+        "creditCardExpired",
+        "creditCardHolder",
+        "creditCardIssueNumber",
+        "creditCardNumber",
+        "creditCardNumberLastDigits",
+        "creditCardType",
+        "creditCardValidFromMonth",
+        "creditCardValidFromYear",
+        "giftCertificateCode",
+        "maskedBankAccountDriversLicense",
+        "maskedBankAccountNumber",
+        "maskedCreditCardNumber",
+        "maskedGiftCertificateCode",
+        "paymentMethod"
+    ],
+    "PaymentMethod": [
+        "active",
+        "activePaymentCards",
+        "description",
+        "ID",
+        "image",
+        "name",
+        "paymentProcessor"
+    ],
+
+    "PaymentProcessor": [
+        "ID"
+    ],
+
+    "PaymentTransaction": [
+        "amount",
+        "paymentInstrument",
+        "paymentProcessor",
+        "transactionID",
+        "type"
+    ],
+    "PriceAdjustment": [
+        "ABTest",
+        "ABTestID",
+        "ABTestSegment",
+        "ABTestSegmentID",
+        "basedOnABTest",
+        "basedOnCoupon",
+        //"campaign",
+        "campaignID",
+        //"couponLineItem",
+        "custom",
+        "promotion",
+        "promotionID",
+        "proratedPrices",
+        "quantity"
+    ],
+    "ProductLineItem": [
+        "adjustedGrossPrice",
+        "adjustedNetPrice",
+        "adjustedPrice",
+        "adjustedTax",
+        "bonusDiscountLineItem",
+        "bonusProductLineItem",
+        //"bundledProductLineItem",
+        //"bundledProductLineItems",
+        "catalogProduct",
+        //"category",
+        "categoryID",
+        "externalLineItemStatus",
+        "externalLineItemText",
+        "gift",
+        "giftMessage",
+        "manufacturerName",
+        "manufacturerSKU",
+        "minOrderQuantity",
+        "minOrderQuantityValue",
+        "optionID",
+        "optionModel",
+        //"optionProductLineItem",
+        //"optionProductLineItems",
+        "optionValueID",
+        //"parent",
+        "position",
+        "priceAdjustments",
+        "product",
+        "productID",
+        //"productInventoryList",
+        "productInventoryListID",
+        "productListItem",
+        "productName",
+        "proratedPrice",
+        "proratedPriceAdjustmentPrices",
+        "quantity",
+        "quantityValue",
+        //"shipment",
+        //"shippingLineItem",
+        "stepQuantity",
+        "stepQuantityValue",
+
+        "basePrice",
+        "grossPrice",
+        //"lineItemCtnr",
+        "lineItemText",
+        "netPrice",
+        "price",
+        "priceValue",
+        "tax",
+        "taxClassID",
+        "taxRate"
+    ],
+    "ProductShippingCost": [
+        "amount",
+        "fixedPrice",
+        "surcharge"
+    ],
+    "ProductShippingLineItem": [
+        "adjustedGrossPrice",
+        "adjustedNetPrice",
+        "adjustedPrice",
+        "adjustedTax",
+        "priceAdjustments",
+        //"productLineItem",
+        "quantity",
+        //"shipment",
+        "surcharge"
+    ],
+    "ProductShippingModel": [
+        "applicableShippingMethods",
+        "inapplicableShippingMethods",
+        "shippingMethodsWithShippingCost"
+    ],
+    "Shipment": [
+        "adjustedMerchandizeTotalGrossPrice",
+        "adjustedMerchandizeTotalNetPrice",
+        "adjustedMerchandizeTotalPrice",
+        "adjustedMerchandizeTotalTax",
+        "adjustedShippingTotalGrossPrice",
+        "adjustedShippingTotalNetPrice",
+        "adjustedShippingTotalPrice",
+        "adjustedShippingTotalTax",
+        //"allLineItems",
+        "default",
+        "gift",
+        //"giftCertificateLineItems",
+        "giftMessage",
+        "ID",
+        "merchandizeTotalGrossPrice",
+        "merchandizeTotalNetPrice",
+        "merchandizeTotalPrice",
+        "merchandizeTotalTax",
+        "productLineItems",
+        "proratedMerchandizeTotalPrice",
+        "shipmentNo",
+        "shippingAddress",
+        "shippingLineItems",
+        "shippingMethod",
+        "shippingMethodID",
+        "shippingPriceAdjustments",
+        "shippingStatus",
+        "shippingTotalGrossPrice",
+        "shippingTotalNetPrice",
+        "shippingTotalPrice",
+        "shippingTotalTax",
+        "standardShippingLineItem",
+        "totalGrossPrice",
+        "totalNetPrice",
+        "totalTax",
+        "trackingNumber"
+    ],
+    "ShipmentShippingCost": [
+        "amount"
+    ],
+    "ShipmentShippingModel": [
+        "applicableShippingMethods",
+        "inapplicableShippingMethods"
+    ],
+    "ShippingLineItem": [
+        "adjustedGrossPrice",
+        "adjustedNetPrice",
+        "adjustedPrice",
+        "adjustedTax",
+        "ID",
+        "shippingPriceAdjustments"
+    ],
+    "ShippingLocation": [
+        "address1",
+        "address2",
+        "city",
+        "countryCode",
+        "postalCode",
+        "postBox",
+        "stateCode",
+        "suite"
+    ],
+    "ShippingMethod": [
+        "baseMethod",
+        "defaultMethod",
+        "dependentMethods",
+        "description",
+        "displayName",
+        "ID",
+        "online",
+        "taxClassID"
+    ],
+    "Site": [
+        "allowedLocales",
+        "currencyCode",
+        "defaultLocale",
+        "httpHostName",
+        "httpsHostName",
+        "ID",
+        "name",
+        "OMSEnabled",
+        "preferences",
+        "timezone",
+        "timezoneOffset"
+    ],
+    "SitePreferences": [
+        "sourceCodeURLParameterName"
+    ],
+    "Status": [
+        "code",
+        "details",
+        "error",
+        "items",
+        "message",
+        "parameters",
+        "status"
+    ],
+    "StatusItem": [
+        "code",
+        "details",
+        "error",
+        "message",
+        "parameters",
+        "status"
+    ],
+    "Locale": [
+        "country",
+        "displayCountry",
+        "displayLanguage",
+        "displayName",
+        "ID",
+        "ISO3Country",
+        "ISO3Language",
+        "language"
+    ],
+    "EnumValue": [
+        "displayValue",
+        "value"
+    ],
+    "Money": [
+        "available",
+        "currencyCode",
+        "value",
+        "valueOrNull"
+    ],
+    "Quantity": [
+        "available",
+        "unit",
+        "value"
+    ],
+    "Form": [
+        "secureKeyHtmlName",
+        "secureKeyValue"
+    ],
+    "FormAction": [
+        "description",
+        "label",
+        "object",
+        "submitted",
+        "triggered",
+        "x",
+        "y"
+    ],
+    "FormElement": [
+        "dynamicHtmlName",
+        "formId",
+        "htmlName",
+        "parent",
+        "valid"
+    ],
+    "FormField": [
+        "checked",
+        "description",
+        "error",
+        "htmlValue",
+        "label",
+        "mandatory",
+        "maxLength",
+        "maxValue",
+        "minLength",
+        "minValue",
+        "options",
+        "regEx",
+        "selected",
+        "selectedOption",
+        "selectedOptionObject",
+        "type",
+        "value"
+    ],
+    "FormFieldOption": [
+        "checked",
+        "htmlValue",
+        "label",
+        "object",
+        "optionId",
+        "parent",
+        "selected",
+        "value"
+    ],
+    "FormFieldOptions": [
+        "optionsCount"
+    ],
+    "FormGroup": [
+        "childCount",
+        "error",
+        "object",
+        "submittedAction",
+        "triggeredAction"
+    ],
+    "FormList": [
+        "selectManyItems",
+        "selectManyObjects",
+        "selectOneItem",
+        "selectOneObject"
+    ],
+    "FormListItem": [
+        "itemIndex"
+    ],
+    "PageMetaData": [
+        "description",
+        "keywords",
+        "title"
+    ],
+    "PagingModel": [
+        "count",
+        "currentPage",
+        "empty",
+        "end",
+        "maxPage",
+        "pageCount",
+        "pageElements",
+        "pageSize",
+        "start"
+    ]
+};
+
+
+
+
+
+
+
+
+

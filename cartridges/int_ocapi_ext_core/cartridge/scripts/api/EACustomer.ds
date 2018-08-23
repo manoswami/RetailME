@@ -1,0 +1,45 @@
+/**
+ * ©2013-2018 salesforce.com, inc. All rights reserved.
+ *
+ * Library for Customer related actions such as Search Customer by EMail, First
+ * name, Last name
+ * 
+ */
+importPackage(dw.system);
+importPackage(dw.customer);
+importPackage(dw.util);
+
+
+function EACustomer() {
+    this.isError = false;
+    this.eaStatusCode = "EA_200";
+}
+
+EACustomer.prototype.stringify = function() {
+    return JSON.stringify(this);
+};
+
+/**
+ * searchCustomer - search for customer profiles based on email address or first name and last name
+ * @param {String} emailId - email address to search for
+ * @param {String} firstName - first name to search for
+ * @param {String} lastName - last name to search for
+ * @returns {SeekableIterator} customer profiles
+ */
+EACustomer.prototype.searchCustomer = function (emailId : String, firstName : String, lastName : String) {
+    var customerManager : CustomerMgr = CustomerMgr;
+    var queryString = "";
+
+    if (!empty(emailId)) {
+        queryString = (!empty(emailId) ? "email ILIKE '*" + emailId + "*'" : "");
+    } else if (!empty(firstName) && !empty(lastName)) {
+        queryString = (!empty(firstName) ? "firstName ILIKE '*" + firstName + "*'" : "")
+            + (!empty(lastName) ? " AND lastName ILIKE '*" + lastName + "*'" : "");
+    } else {
+        this.isError = true;
+        this.eaStatusCode = "EA_CUSTOMER_400";
+    }
+
+    var customers : SeekableIterator = CustomerMgr.searchProfiles(queryString, null, null);
+    return customers;
+};
