@@ -1,0 +1,752 @@
+/**
+ * CalculateCart.ds
+ *
+ *
+ * @input  Basket : dw.order.Basket
+ */
+ importPackage( dw.system );
+ importPackage( dw.web );
+ importPackage( dw.value );
+ importPackage( dw.util );
+ importPackage( dw.order );
+ importPackage( dw.campaign );
+ importPackage( dw.catalog );
+ importPackage( dw.customer );
+
+ importScript("int_ocapi_ext_core:util/ValueFormatters.ds");
+ importScript("int_ocapi_ext_core:util/ImageUtils.ds");
+
+/**
+ * Function: execute
+ *
+ * Main function of the calculation script.
+ */
+function execute( pdict : PipelineDictionary ) : Number
+{
+    // ===================================================
+	// =====     	PROCESS INPUT PARAMETERS 		 =====
+    // ===================================================
+
+	var basket : Basket = pdict.Basket;
+	
+	// call the OCAPI hook to calculate the cart
+	if (dw.system.HookMgr.hasHook("dw.ocapi.shop.basket.calculate")) {
+		dw.system.HookMgr.callHook( "dw.ocapi.shop.basket.calculate", "calculate", basket );
+	} 
+	
+    return PIPELET_NEXT;
+}
+
+
+
+function CalculateCart() {
+}
+
+CalculateCart.prototype.calculateCart = function(basket) 
+{
+    // ===================================================
+	// =====   CALCULATE PRODUCT LINE ITEM PRICES    =====
+    // ===================================================
+
+	calculateProductPrices(basket);
+
+    // ===================================================
+	// =====    CALCULATE GIFT CERTIFICATE PRICES    =====
+    // ===================================================
+
+	calculateGiftCertificatePrices(basket);
+
+    // ===================================================
+	// =====   Note: Promotions must be applied      =====
+	// =====   after the tax calculation for         =====
+	// =====   storefronts based on GROSS prices     =====
+    // ===================================================
+
+    // ===================================================
+	// =====   APPLY PROMOTION DISCOUNTS			 =====
+	// =====   Apply product and order promotions.   =====
+	// =====   Must be done before shipping 		 =====
+	// =====   calculation. 					     =====
+    // ===================================================
+	
+	PromotionMgr.applyDiscounts(basket);
+
+    // ===================================================
+	// =====        CALCULATE SHIPPING COSTS         =====
+    // ===================================================
+
+	// apply product specific shipping costs
+	// and calculate total shipping costs
+	ShippingMgr.applyShippingCost(basket);
+	
+	// ===================================================
+	// =====   APPLY Shipping Price Override		 =====
+	// =====   Endless Aisle Application 	 		 =====
+	// =====   Begin								 =====
+    // ===================================================
+	
+	overrideShippingPrice(basket);
+
+    // ===================================================
+	// =====   APPLY PROMOTION DISCOUNTS			 =====
+	// =====   Apply product and order and 			 =====
+	// =====   shipping promotions.                  =====
+    // ===================================================
+
+	PromotionMgr.applyDiscounts(basket);
+
+	// since we might have bonus product line items, we need to
+	// reset product prices
+	calculateProductPrices(basket);
+
+    // ===================================================
+	// =====         CALCULATE TAX                   =====
+    // ===================================================
+
+	calculateTax(basket);
+
+    // ===================================================
+	// =====         CALCULATE BASKET TOTALS         =====
+    // ===================================================
+
+	updateTotals(basket);
+	
+	// ===================================================
+	// =====         Add any necessary custom        =====
+	// =====         attributes                      =====
+    // ===================================================
+    addCustomAttributesToBasket(basket);
+
+    // ===================================================
+	// =====            DONE                         =====
+    // ===================================================
+};
+
+/**
+ * @function calculateProductPrices
+ *
+ * Calculates product prices based on line item quantities. Set calculates prices
+ * on the product line items.  This updates the basket and returns nothing
+ *
+ * @param {object} basket The basket containing the elements to be computed
+ */
+function calculateProductPrices (basket)
+{
+	// get total quantities for all products contained in the basket
+	var productQuantities : HashMap = basket.getProductQuantities();
+
+	// get product prices for the accumulated product quantities
+	var productPrices : HashMap = new HashMap();
+
+	for each(var product : Product in productQuantities.keySet())
+	{
+		var quantity : Quantity = productQuantities.get(product);
+		productPrices.put(product, product.priceModel.getPrice(quantity));
+	}
+
+    // ===================================================
+	// =====   APPLY Product Price Override			 =====
+	// =====   Endless Aisle Application 	         =====
+	// =====   Begin								 =====
+    // ===================================================
+	
+	productPrices = overrideProductPrice(basket, productPrices);
+	// iterate all product line items of the basket and set prices
+	var productLineItems : Iterator = basket.getAllProductLineItems().iterator();
+	while(productLineItems.hasNext())
+	{
+		var productLineItem : ProductLineItem = productLineItems.next();
+
+		// handle non-catalog products
+		if(!productLineItem.catalogProduct)
+		{
+			productLineItem.setPriceValue(productLineItem.basePrice.valueOrNull);
+			continue;
+		}
+
+		var product : Product = productLineItem.product;
+
+		// handle option line items
+		if(productLineItem.optionProductLineItem)
+		{
+			// for bonus option line items, we do not update the price
+			// the price is set to 0.0 by the promotion engine
+			if(!productLineItem.bonusProductLineItem)
+			{
+				productLineItem.updateOptionPrice();
+			}
+		}
+		// handle bundle line items, but only if they're not a bonus
+		else if(productLineItem.bundledProductLineItem)
+		{
+			// no price is set for bundled product line items
+		}
+		// handle bonus line items
+		// the promotion engine set the price of a bonus product to 0.0
+		// we update this price here to the actual product price just to
+		// provide the total customer savings in the storefront
+		// we have to update the product price as well as the bonus adjustment
+		else if(productLineItem.bonusProductLineItem && product != null)
+		{
+			var price : Money = product.priceModel.price;
+			productLineItem.setPriceValue(price.valueOrNull);
+			// get the product quantity
+			var quantity : Quantity = productLineItem.quantity;
+			// we assume that a bonus line item has only one price adjustment
+			var adjustments : Collection = productLineItem.priceAdjustments;
+			if(!adjustments.isEmpty())
+			{
+				var adjustment : PriceAdjustment = adjustments.iterator().next();
+				var adjustmentPrice : Money = price.multiply(quantity.value).multiply(-1.0);
+				adjustment.setPriceValue(adjustmentPrice.valueOrNull);
+			}
+		}
+
+		// set the product price. Updates the 'basePrice' of the product line item,
+		// and either the 'netPrice' or the 'grossPrice' based on the current taxation
+		// policy
+
+		// handle product line items unrelated to product
+		else if(product == null)
+		{
+			productLineItem.setPriceValue(null);
+		}
+		// handle normal product line items
+		else
+		{
+			productLineItem.setPriceValue(productPrices.get(product).valueOrNull);
+		}
+    }
+}
+
+/**
+ * @function calculateGiftCertificates
+ *
+ * Function sets either the net or gross price attribute of all gift certificate
+ * line items of the basket by using the gift certificate base price. It updates the basket in place.
+ *
+ * @param {object} basket The basket containing the gift certificates
+ */
+function calculateGiftCertificatePrices (basket)
+{
+	var giftCertificates : Iterator = basket.getGiftCertificateLineItems().iterator();
+	while(giftCertificates.hasNext())
+	{
+		var giftCertificate : GiftCertificateLineItem = giftCertificates.next();
+		giftCertificate.setPriceValue(giftCertificate.basePrice.valueOrNull);
+	}
+}
+
+/**
+ * @function calculateTax <p>
+ *
+ * Determines tax rates for all line items of the basket. Uses the shipping addresses
+ * associated with the basket shipments to determine the appropriate tax jurisdiction.
+ * Uses the tax class assigned to products and shipping methods to lookup tax rates. <p>
+ *
+ * Sets the tax-related fields of the line items. <p>
+ *
+ * Handles gift certificates, which aren't taxable. <p>
+ *
+ * Note that the function implements a fallback to the default tax jurisdiction
+ * if no other jurisdiction matches the specified shipping location/shipping address.<p>
+ *
+ * Note that the function implements a fallback to the default tax class if a
+ * product or a shipping method does explicitly define a tax class.
+ *
+ * @param {object} basket The basket containing the elements for which taxes need to be calculated
+ */
+function calculateTax (basket)
+{
+	var shipments : Iterator = basket.getShipments().iterator();
+	while(shipments.hasNext())
+	{
+		var shipment : Shipment = shipments.next();
+
+		// first we reset all tax fields of all the line items
+		// of the shipment
+		var shipmentLineItems : Iterator = shipment.getAllLineItems().iterator();
+		while(shipmentLineItems.hasNext())
+		{
+			var lineItem : LineItem = shipmentLineItems.next();
+			// do not touch tax rate for fix rate items
+			if(lineItem.taxClassID == TaxMgr.customRateTaxClassID)
+			{
+				lineItem.updateTax(lineItem.taxRate);
+			}
+			else
+			{
+				lineItem.updateTax(null);
+			}
+		}
+
+		// identify the appropriate tax jurisdiction
+		var taxJurisdictionID : String = null;
+
+		// if we have a shipping address, we can determine a tax jurisdiction for it
+		if(shipment.shippingAddress != null)
+		{
+			var location : ShippingLocation = new ShippingLocation(shipment.shippingAddress);
+			taxJurisdictionID = TaxMgr.getTaxJurisdictionID(location);
+		}
+
+		if(taxJurisdictionID == null)
+		{
+			taxJurisdictionID = TaxMgr.defaultTaxJurisdictionID;
+		}
+
+		// if we have no tax jurisdiction, we cannot calculate tax
+		if(taxJurisdictionID == null)
+		{
+			continue;
+		}
+
+		// shipping address and tax juridisction are available
+		var shipmentLineItems : Iterator = shipment.getAllLineItems().iterator();
+		while(shipmentLineItems.hasNext())
+		{
+			var lineItem : LineItem = shipmentLineItems.next();
+			var taxClassID : String = lineItem.taxClassID;
+
+			Logger.debug("1. Line Item {0} with Tax Class {1} and Tax Rate {2}", lineItem.lineItemText, lineItem.taxClassID, lineItem.taxRate);
+
+			// do not touch line items with fix tax rate
+			if(taxClassID == TaxMgr.customRateTaxClassID)
+			{
+				continue;
+			}
+
+			// line item does not define a valid tax class; let's fall back to default tax class
+			if(taxClassID == null)
+			{
+				taxClassID = TaxMgr.defaultTaxClassID;
+			}
+
+			// if we have no tax class, we cannot calculate tax
+			if(taxClassID == null)
+			{
+				Logger.debug("Line Item {0} has invalid Tax Class {1}", lineItem.lineItemText, lineItem.taxClassID);
+				continue;
+			}
+
+			// get the tax rate
+			var taxRate : Number = TaxMgr.getTaxRate(taxClassID, taxJurisdictionID);
+			// w/o a valid tax rate, we cannot calculate tax for the line item
+			if(taxRate == null)
+			{
+				continue;
+			}
+
+			// calculate the tax of the line item
+	    lineItem.updateTax(taxRate);
+			Logger.debug("2. Line Item {0} with Tax Class {1} and Tax Rate {2}", lineItem.lineItemText, lineItem.taxClassID, lineItem.taxRate);
+	}
+	}
+
+	// besides shipment line items, we need to calculate tax for possible order-level price adjustments
+    // this includes order-level shipping price adjustments
+    if(!basket.getPriceAdjustments().empty || !basket.getShippingPriceAdjustments().empty)
+    {
+	// calculate a mix tax rate from
+	var basketPriceAdjustmentsTaxRate : Number = (basket.getMerchandizeTotalGrossPrice().value / basket.getMerchandizeTotalNetPrice().value) - 1;
+
+	    var basketPriceAdjustments : Iterator = basket.getPriceAdjustments().iterator();
+	    while(basketPriceAdjustments.hasNext())
+	    {
+			var basketPriceAdjustment : PriceAdjustment = basketPriceAdjustments.next();
+			basketPriceAdjustment.updateTax(basketPriceAdjustmentsTaxRate);
+	    }
+
+	    var basketShippingPriceAdjustments : Iterator = basket.getShippingPriceAdjustments().iterator();
+	    while(basketShippingPriceAdjustments.hasNext())
+	    {
+			var basketShippingPriceAdjustment : PriceAdjustment = basketShippingPriceAdjustments.next();
+			basketShippingPriceAdjustment.updateTax(basketPriceAdjustmentsTaxRate);
+	    }
+	}
+}
+
+function updateTotals(basket: Basket) {
+	basket.updateTotals();
+}
+
+/**
+ * Endless Aisle Application
+ *
+ * FUNCTION: overrideProductPrice
+ *
+ * Function overrides the product price
+ */
+function overrideProductPrice(basket : Basket, productPrices : HashMap)
+{
+
+	var productLineItemsItr : Iterator = basket.getAllProductLineItems().iterator();
+	var productPricesMap : HashMap = productPrices;
+	while (productLineItemsItr.hasNext()) {
+
+		var productLineItem : ProductLineItem = productLineItemsItr.next();
+		if (!empty(productLineItem.custom.eaPriceOverrideType)) {
+			
+			productLineItem.custom.eaOriginalPrice =  productPricesMap.get(productLineItem.product);
+			
+			var itemPrice : Decimal = new Decimal (productPrices.get(productLineItem.product).value);
+			var finalPrice : Decimal = new Decimal(0);
+			
+			// if the override type is none, the override is being removed
+			if (productLineItem.custom.eaPriceOverrideType.equalsIgnoreCase("None")) {
+				finalPrice = itemPrice;
+				delete productLineItem.custom.eaPriceOverrideType;
+				break;
+			}
+			var itemPriceOverrideValue : Decimal = new Decimal (productLineItem.custom.eaPriceOverrideValue);
+			
+			if (productLineItem.custom.eaPriceOverrideType.equalsIgnoreCase("Amount")) {
+				finalPrice = itemPrice.subtract(itemPriceOverrideValue);
+				
+			} else if (productLineItem.custom.eaPriceOverrideType.equalsIgnoreCase("Percent")) {
+				finalPrice = itemPrice.subtract(itemPrice.multiply(itemPriceOverrideValue));
+				
+			} else if (productLineItem.custom.eaPriceOverrideType.equalsIgnoreCase("FixedPrice")) {
+				finalPrice = itemPriceOverrideValue;
+			} 
+			var overridePrice = new dw.value.Money (finalPrice.get(), session.getCurrency().getCurrencyCode());
+			productPricesMap.put(productLineItem.product, overridePrice);
+		}
+	}
+	
+	return productPricesMap;
+}
+
+/**
+ * Endless Aisle Application
+ *
+ * FUNCTION: overrideShippingPrice
+ *
+ * Function overrides the shipping price
+ */
+function overrideShippingPrice(basket : Basket)
+{
+
+	var allLineItems : Iterator = basket.getAllLineItems().iterator();
+	while(allLineItems.hasNext())
+	{
+		var lineItem : LineItem = allLineItems.next();
+		if (lineItem.describe().ID.equalsIgnoreCase("ShippingLineItem")) {
+
+
+			if (!empty(lineItem.custom.eaPriceOverrideType)) {
+				var finalPrice : Decimal = new Decimal(0);
+				if (basket.defaultShipment.getShippingMethod()) {
+					if (basket.adjustedMerchandizeTotalNetPrice.valueOrNull) { 					
+						var itemPrice : Decimal = new Decimal((dw.order.ShippingMgr.getShippingCost(basket.defaultShipment.getShippingMethod(), basket.adjustedMerchandizeTotalNetPrice)).valueOrNull);
+						
+						// if the override type is none, the override is being removed
+						if (lineItem.custom.eaPriceOverrideType.equalsIgnoreCase("None")) {
+							finalPrice = itemPrice;
+							break
+						}
+						var itemPriceOverrideValue : Decimal = new Decimal (lineItem.custom.eaPriceOverrideValue);
+						
+						if (lineItem.custom.eaPriceOverrideType.equalsIgnoreCase("Amount")) {
+							finalPrice = itemPrice.subtract(itemPriceOverrideValue);
+							
+						} else if (lineItem.custom.eaPriceOverrideType.equalsIgnoreCase("Percent")) {
+							finalPrice = itemPrice.subtract(itemPrice.multiply(itemPriceOverrideValue));
+							
+						} else if (lineItem.custom.eaPriceOverrideType.equalsIgnoreCase("FixedPrice")) {
+							finalPrice = itemPriceOverrideValue;
+						}
+					}
+					var overridePrice = new dw.value.Money (finalPrice.get(), session.getCurrency().getCurrencyCode());
+				}
+				lineItem.setPriceValue(finalPrice.get());
+			}
+		}
+	}
+}	
+
+/**
+ * FUNCTION: addCustomAttributesToBasket
+ * 
+ * Add EA custom attributes to the basket object 
+ */
+ function addCustomAttributesToBasket(basket : Basket) {
+	addProductItemCustomAttributes(basket);
+	addShippingMethodCustomAttributes(basket);
+	addBasketCustomAttributes(basket);
+}
+
+/**
+ * FUNCTION: addProductItemCustomAttributes
+ *
+ * Add custom attributes for product items 
+ */
+function addProductItemCustomAttributes(basket : Basket) {
+	var productLineItems : Iterator = basket.getAllProductLineItems().iterator();
+	if (!empty(productLineItems)) {
+		while(productLineItems.hasNext()) {
+			var productLineItem : ProductLineItem = productLineItems.next();
+				if (!productLineItem.bundledProductLineItem && !productLineItem.optionProductLineItem) {
+				var obj = productLineItem.custom.eaCustomAttributes ? JSON.parse(productLineItem.custom.eaCustomAttributes) : {};
+				obj.base_price = ValueFormatters.formatFixedValueOrNull( productLineItem.product.priceModel.price.valueOrNull, 2 );
+				obj.base_price_override = ValueFormatters.formatFixedValueOrNull( productLineItem.basePrice.valueOrNull, 2 );
+				obj.price = ValueFormatters.formatFixedValueOrNull( productLineItem.adjustedPrice.valueOrNull, 2 );
+				obj.thumbnailUrl = ImageUtils.getImageURL(productLineItem.product, 'cart');
+				obj.message = calculateAvailabilityMessage(productLineItem);
+				obj.price_override = !empty(obj.eaPriceOverrideType) ? "true" : "false";
+				productLineItem.custom.eaCustomAttributes = JSON.stringify(obj);
+			}
+		}
+	}
+}
+
+/**
+ * FUNCTION: calculateAvailabilityMessage
+ *
+ * Determine the availability message for a product item 
+ */
+function calculateAvailabilityMessage(pli: ProductLineItem) {
+	var product : Product = pli.product;
+	var instockdate : String = "";
+	var	message = "";
+		
+	if (!pli.bonusProductLineItem || pli.getBonusDiscountLineItem() != null) {
+		
+		var quantity = pli.quantityValue;
+		var levels = product.availabilityModel.getAvailabilityLevels(pli.quantityValue);
+		
+		if (product.availabilityModel.inventoryRecord != null && product.availabilityModel.inventoryRecord.inStockDate != null) {
+			instockdate = product.availabilityModel.inventoryRecord.inStockDate.toDateString();
+		}
+		
+		if (levels.inStock.value > 0) {
+			if (levels.inStock.value != quantity) {
+				message = StringUtils.format(Resource.msg('global.quantityinstock','locale',null),levels.inStock.value);
+			}
+		}
+		
+		if (levels.preorder.value > 0) {
+			if (levels.preorder.value == quantity) {
+				message = StringUtils.format(Resource.msg('global.allpreorder','locale',null));
+			
+			} else if (levels.notAvailable.value == 0) {
+				message = message + ". " + StringUtils.format(Resource.msg('global.remainingpreorder','locale',null));
+			
+			} else {
+				message = message + ". " + StringUtils.format(Resource.msg('global.quantitypreorder','locale',null),levels.preorder.value);
+			}
+		}
+		
+		if (levels.backorder.value > 0) {
+			if (levels.backorder.value == quantity) {
+				message = StringUtils.format(Resource.msg('global.allbackorder','locale',null));
+				
+			} else if (levels.notAvailable.value == 0) {
+				message = message + ". " + StringUtils.format(Resource.msg('global.remainingbackorder','locale',null));
+				
+			} else {
+				message = message + ". " + StringUtils.format(Resource.msg('global.quantitybackorder','locale',null),levels.backorder.value);
+			}
+		}			
+
+		if (levels.notAvailable.value > 0) {
+			message = message ? message + ". " : "";
+			if (levels.notAvailable.value == quantity) {
+				message = message + StringUtils.format(Resource.msg('global.allnotavailable','locale',null));
+				
+			} else {
+				message = StringUtils.format(Resource.msg('global.remainingnotavailable','locale',null));
+				
+			}
+		}
+
+	}
+	return message;
+}
+
+/**
+ * FUNCTION: addShippingMethodCustomAttributes
+ *
+ * Add EA custom attributes for shipping methods
+ */
+function addShippingMethodCustomAttributes(basket: Basket) {
+	var shipments : Iterator = basket.getShipments().iterator();
+	if (!empty(shipments)) {
+		while(shipments.hasNext()) {
+			var shipment : Shipment = shipments.next();
+			var shippingMethod = shipment.getShippingMethod();
+			var shippingLineItems : Iterator = shipment.getShippingLineItems().iterator();
+			while (shippingLineItems.hasNext()) {
+				var shippingLineItem : ShippingLineItem = shippingLineItems.next();
+				var obj = shippingLineItem.custom.eaCustomAttributes ? JSON.parse(shippingLineItem.custom.eaCustomAttributes) : {};
+				if (!empty(obj.eaPriceOverrideType)) {
+					obj.base_price = dw.order.ShippingMgr.getShippingCost(basket.defaultShipment.getShippingMethod(), basket.adjustedMerchandizeTotalNetPrice).value;
+					obj.base_price_override = ValueFormatters.formatFixedValueOrNull( shippingLineItem.basePrice.valueOrNull, 2 );
+					obj.price_override = "true";
+			
+				} else {
+					delete obj.base_price;
+					delete obj.base_price_override;
+					obj.price_override = "false";
+				}
+				shippingLineItem.custom.eaCustomAttributes = JSON.stringify(obj);
+			}
+		}
+	}
+}
+
+/**
+ * FUNCTION: addBasketCustomAttributes
+ *
+ * Add EA custom attributes for the top level basket object
+ */
+function addBasketCustomAttributes(basket : Basket) {
+	var obj = {};
+	
+	var date = basket.getCreationDate();
+	var cal : Calendar = new Calendar(date);
+	obj.creation_date = StringUtils.formatCalendar(cal, request.getLocale(), Calendar.LONG_DATE_PATTERN);
+	
+	calculateProductTotals(basket, obj);
+	calculateShippingPrices(basket, obj);
+		
+	obj.order_total = ValueFormatters.formatFixedValueOrNull( basket.totalGrossPrice.valueOrNull, 2 );
+	obj.tax_total = ValueFormatters.formatFixedValueOrNull( basket.totalTax.valueOrNull, 2 );
+	
+	calculateCoupons(basket, obj);
+	
+	calculateApproachingPromotions(basket, obj);
+	
+	basket.custom.eaCustomAttributes = JSON.stringify(obj);
+}
+
+/**
+ * FUNCTION: calculateProductTotals
+ *
+ * Determine the product totals for the basket
+ */
+function calculateProductTotals(basket : Basket, obj : Object) {
+	var orderDiscounts = 0.0;
+	for (var i=0; i< basket.priceAdjustments.length; i++) {
+		var pa = basket.priceAdjustments[i];
+		if (pa.promotion.promotionClass == dw.campaign.Promotion.PROMOTION_CLASS_ORDER) {
+			orderDiscounts += pa.priceValue;
+		}
+	}
+	if (!empty(basket.adjustedMerchandizeTotalNetPrice.valueOrNull)) {
+		obj.product_sub_total = basket.adjustedMerchandizeTotalNetPrice.valueOrNull - orderDiscounts;
+		obj.product_total =	ValueFormatters.formatFixedValueOrNull( basket.adjustedMerchandizeTotalNetPrice.valueOrNull, 2 );
+	}
+}
+
+/**
+ * FUNCTION: calculateShippingPrices 
+ *
+ * Calculate the shipping price for the basket
+ */
+function calculateShippingPrices(basket : Basket, obj : Object) {
+		if (!empty(basket.getAdjustedShippingTotalPrice().valueOrNull)) {
+		obj.shipping_total =  ValueFormatters.formatFixedValueOrNull( basket.getAdjustedShippingTotalPrice().valueOrNull, 2 );
+	}
+	if (!empty(basket.shippingTotalNetPrice.valueOrNull)) {
+		obj.shipping_total_excluding_discount = ValueFormatters.formatFixedValueOrNull( basket.shippingTotalNetPrice.valueOrNull, 2);
+	}
+			
+			
+	var shippingExclDiscounts : dw.value.Money = basket.shippingTotalPrice;
+	var shippingInclDiscounts : dw.value.Money = basket.getAdjustedShippingTotalPrice();
+	var shippingDiscount : dw.value.Money = shippingExclDiscounts.subtract( shippingInclDiscounts );
+	if (!empty(shippingDiscount.valueOrNull)) {
+		obj.shipping_discount = ValueFormatters.formatFixedValueOrNull( shippingDiscount.valueOrNull, 2 );
+	}
+	
+	var shippingBasePrice = new dw.value.Money(0.0, session.getCurrency().getCurrencyCode());
+	var shippingBasePriceOverride = new dw.value.Money(0.0, session.getCurrency().getCurrencyCode());
+	
+	var shipments : Iterator = basket.getShipments().iterator();
+	if (!empty(shipments)) {
+		while(shipments.hasNext()) {
+			var shipment : Shipment = shipments.next();
+			var shippingMethod = shipment.getShippingMethod();
+			var shippingLineItems : Iterator = shipment.getShippingLineItems().iterator();
+			while (shippingLineItems.hasNext()) {
+				var shippingLineItem = shippingLineItems.next();
+				if (!empty(shippingLineItem.custom.eaPriceOverrideType) && shippingLineItem.custom.eaPriceOverrideType != "none") {
+					shippingBasePrice = new dw.value.Money (dw.order.ShippingMgr.getShippingCost(basket.defaultShipment.getShippingMethod(), basket.adjustedMerchandizeTotalNetPrice).value, session.getCurrency().getCurrencyCode());
+					shippingBasePriceOverride = shippingLineItem.basePrice;
+			}
+		}
+		}
+	}
+
+	if (!empty(basket.shippingTotalNetPrice.valueOrNull)) {
+		obj.shipping_total_base_price = ValueFormatters.formatFixedValueOrNull( basket.shippingTotalNetPrice.subtract(shippingBasePriceOverride).add(shippingBasePrice).valueOrNull, 2 );
+	}
+}
+
+/**
+ * FUNCTION: calculateApproachingPromotions
+ * 
+ * Calculate any approaching promotions
+ */
+function calculateApproachingPromotions(basket : Basket, obj : Object) {
+		var discountPlan = dw.campaign.PromotionMgr.getDiscounts(basket);
+		if (!empty(discountPlan)) {
+			var approachingOrderPromotions = [];
+			
+			var approachingDiscountCollection = discountPlan.getApproachingOrderDiscounts();
+			if (approachingDiscountCollection) {
+				var iterator = approachingDiscountCollection.iterator();
+				while (iterator.hasNext()) {
+					var approachingDiscount = iterator.next();
+					approachingOrderPromotions.push({amount_to_qualify: ValueFormatters.formatFixedValueOrNull( approachingDiscount.getDistanceFromConditionThreshold().valueOrNull, 2 ),
+						promotion_description: dw.util.StringUtils.stringToHtml(approachingDiscount.getDiscount().getPromotion().getCalloutMsg().toString())
+					});
+				}
+			}
+			
+			var approachingShippingPromotions = [];
+			var approachingShippingDiscountCollection = discountPlan.getApproachingShippingDiscounts(basket.getDefaultShipment());
+			if (approachingShippingDiscountCollection) {
+				iterator = approachingShippingDiscountCollection.iterator();
+				while (iterator.hasNext()) {
+					var approachingShippingDiscount = iterator.next();
+					var msg = approachingShippingDiscount.getDiscount().getPromotion().getCalloutMsg();
+					var promotion_description = msg ? dw.util.StringUtils.stringToHtml(msg.toString()) : "";
+					approachingShippingPromotions.push({amount_to_qualify: ValueFormatters.formatFixedValueOrNull( approachingShippingDiscount.getDistanceFromConditionThreshold().valueOrNull, 2 ),
+						promotion_description: promotion_description
+					});
+				}
+			}
+			
+		}
+		obj.approaching_order_promotions = approachingOrderPromotions;
+		obj.approaching_shipping_promotions = approachingShippingPromotions;
+}
+
+/**
+ * FUNCTION: calculateCoupons
+ *
+ * Determine any coupons on the basket
+ */
+function calculateCoupons(basket : Basket, obj: Object) {
+	var coupons = [];
+	var couponLineItems = basket.getCouponLineItems();
+	if (!empty(couponLineItems)) {
+		var iterator = couponLineItems.iterator();
+		while (iterator.hasNext()) {
+			var couponLineItem = iterator.next();
+			var coupObj = {coupon_applied: couponLineItem.applied, coupon_code: couponLineItem.couponCode, coupon_price_adjustments: []};
+			var priceAdjustments = couponLineItem.getPriceAdjustments();
+			if (!empty(priceAdjustments)) {
+				var priceAdjustmentIterator = priceAdjustments.iterator();
+				while (priceAdjustmentIterator.hasNext()) {
+					var priceAdjustment = priceAdjustmentIterator.next();
+					coupObj.coupon_price_adjustments.push({promotion_id: priceAdjustment.promotionID, item_text: priceAdjustment.lineItemText, price: priceAdjustment.priceValue});
+				}
+			}
+			coupons.push(coupObj);
+		}
+	}
+	obj.coupons = coupons;
+}

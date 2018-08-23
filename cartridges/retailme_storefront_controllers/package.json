@@ -1,0 +1,4 @@
+{
+	"init":["./cartridge/scripts/init/httpServiceInit.ds"],
+   "hooks": "./cartridge/scripts/hooks.json"
+}

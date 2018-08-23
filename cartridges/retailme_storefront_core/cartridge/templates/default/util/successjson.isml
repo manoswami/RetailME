@@ -1,0 +1,6 @@
+<iscontent type="application/json" charset="UTF-8" compact="true"/>
+<isif condition="${!empty(pdict.basket_id)}">
+{"basket_id" : "${pdict.basket_id}","success": true}
+<iselse>
+{"success": true}
+</isif>

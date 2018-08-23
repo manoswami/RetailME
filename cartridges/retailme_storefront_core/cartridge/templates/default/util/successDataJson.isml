@@ -1,0 +1,6 @@
+<iscontent type="application/json" charset="UTF-8" compact="true"/>
+<isif condition="${!empty(pdict.dataJSON)}">
+	<isprint value="${pdict.dataJSON}"  encoding="off">
+<iselse>
+    {"success": true}
+</isif>

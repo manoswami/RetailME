@@ -1,0 +1,48 @@
+{
+	"hooks": [
+		{
+			"name": "dw.ocapi.shop.basket.calculate",
+			"script": "./cart/calculate.js"
+		},
+		{
+			"name": "dw.extensions.applepay.paymentAuthorized.authorizeOrderPayment",
+			"script": "./checkout/applepay.js"
+		},
+		{
+			"name": "dw.ocapi.shop.product.modifyGETResponse",  
+        	"script": "./hooks/product_hook_scripts.js"
+		},
+		{
+			"name": "dw.ocapi.shop.customer.product_list.item.modifyPOSTResponse",  
+        	"script": "./hooks/addtowishlist_hook.js"
+		},
+		{
+			"name": "dw.ocapi.shop.basket.afterPost",  
+        	"script": "./hooks/addtobasket_hook.js"
+		},
+		{
+			"name": "dw.ocapi.shop.basket.items.afterPOST",  
+			"script": "./hooks/addtobasket_hook.js"
+		},
+		{
+			"name": "dw.ocapi.shop.basket.modifyPOSTResponse",  
+        	"script": "./hooks/addtobasket_hook.js"
+		},
+		{
+			"name": "dw.ocapi.shop.basket.modifyGETResponse",  
+        	"script": "./hooks/addtobasket_hook.js"
+		},
+		{
+			"name": "dw.ocapi.shop.customer.beforePatchCustomer",  
+        	"script": "./hooks/updateCustomer_hook.js"
+		},
+		{
+			"name": "dw.ocapi.shop.order.afterPOST",  
+        	"script": "./hooks/ordersubmit_hook.js"
+		},
+		{
+			"name": "dw.ocapi.shop.product_search.modifyGETResponse",  
+        	"script": "./hooks/productsearch_hook.js"
+		}
+	]
+}

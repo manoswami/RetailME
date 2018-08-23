@@ -1,0 +1,8 @@
+<iscontent type="application/json" charset="UTF-8" compact="true"/>
+
+<isif condition="${!empty(pdict.msg)}">
+{"success": false , "error" : "${pdict.msg}"}
+<iselse>
+{"success": false}
+</isif>
+
