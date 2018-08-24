@@ -174,7 +174,7 @@ function getProductsLocation(storeid : String,zoneid : String)
 	while(zoneVariantsIterator.hasNext())
 	{
 		var productID : String = zoneVariantsIterator.next();
-		var quantity : Number = getProdInventoryInStore(productID,storeid);
+		var quantity : Number = new Number(0);
 		if(currentZoneProdMap.containsKey(productID))
 		{
 			quantity = currentZoneProdMap.get(productID);
