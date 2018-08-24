@@ -23,8 +23,8 @@ function requestAssistance()
 	notificationCO.custom.customerId = customerNo;
 	notificationCO.custom.type = "Assistance";
 	notificationCO.custom.isNew = true;
-	var zoneName = CustomObjectMgr.queryCustomObject('TestInitialData', 'custom.ZoneID = {0}', zoneId).custom.ZoneName;	       
-	notificationCO.custom.Msg = customer.getProfile().firstName + " needs assistance in Women's Area";
+	var zoneName = CustomObjectMgr.queryCustomObject('TestInitialData', 'custom.ZoneID = {0}', zoneId).custom.ZoneName;      
+	notificationCO.custom.Msg = customer.getProfile().firstName + " needs assistance in "+ zoneName + " Area";
 	Transaction.commit();
 	app.getView().render('util/successjson');
 	}
