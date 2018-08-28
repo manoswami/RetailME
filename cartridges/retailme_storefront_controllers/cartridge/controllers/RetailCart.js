@@ -38,6 +38,7 @@ function addProductsInCheckoutZoneToCart()
 	var basket : Basket = BasketMgr.getCurrentOrNewBasket();
 	var shipment : Shipment = basket.getDefaultShipment();
 	
+	removeExistingProducts(basket);
 	addCheckoutZoneProducts(basket,shipment,zoneid);
 	populateBasketFromCustomerAccount(basket,shipment,customer);
 	dw.system.HookMgr.callHook( "dw.ocapi.shop.basket.afterPost", "afterPost", basket );
@@ -48,7 +49,7 @@ function addProductsInCheckoutZoneToCart()
 	{
 		Logger.error("Error occured in RetailCart.js : "+ e);
 		Transaction.rollback();
-		app.getView({ErrorCode : e}).render('util/errorjson');
+		app.getView({msg : e}).render('util/errorjson');
 	}
 }
 
@@ -166,6 +167,14 @@ function notifyTW()
 	}
 }
 
+function removeExistingProducts(basket : Basket)
+{
+	var pli = basket.getAllProductLineItems().iterator();
+	while(pli.hasNext())
+	{
+		basket.removeProductLineItem(pli.next());
+	}
+}
 
 exports.AddtoCart = guard.ensure(['post'], addProductsInCheckoutZoneToCart);
 exports.NotifyTW = guard.ensure(['post'], notifyTW);

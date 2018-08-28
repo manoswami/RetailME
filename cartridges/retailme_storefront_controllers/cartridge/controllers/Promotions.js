@@ -8,7 +8,8 @@ function getOfferForTheCustomer()
 {
 	try
 	{
-		var respJson = getActiveOffer();
+		var zoneID = request.httpParameterMap.zoneID;
+		var respJson = getActiveOffer(zoneID);
 		app.getView({dataJSON : JSON.stringify(respJson)}).render('util/successDataJson');
 	}
 	catch(e)
@@ -18,7 +19,7 @@ function getOfferForTheCustomer()
 	}
 }
 
-function getActiveOffer()
+function getActiveOffer(zoneID)
 {
 	var offerJson = {"success": false};
 	var activeProductPromotions : Collection = require('dw/campaign/PromotionMgr').getActivePromotions().getProductPromotions();
@@ -30,7 +31,7 @@ function getActiveOffer()
 	while(productPromotionsIterator.hasNext())
 	{
 		var productPromotion : Promotion = productPromotionsIterator.next();
-		if(!empty(productPromotion) && !empty(productPromotion.custom.ProductId) && productIsInStock(productPromotion.custom.ProductId) && productPromotion.isBasedOnCoupons())
+		if(!empty(productPromotion) && !empty(productPromotion.custom.ProductId) && productIsInStock(productPromotion.custom.ProductId) && !empty(productPromotion.custom.ZoneID) && productPromotion.custom.ZoneID.equals(zoneID) && productPromotion.isBasedOnCoupons())
 		{
 			var offerJson = {"success": false};
 			var promoCouponsColl : Collection = productPromotion.getCoupons();
